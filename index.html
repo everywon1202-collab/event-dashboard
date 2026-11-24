@@ -1238,8 +1238,8 @@
         controls.classList.add('show');
         renderEntries();
       } else if (mode === 'today') {
-        titleEl.textContent = '오늘(11/24) 제출 내역 (9건)';
         const list = ENTRIES.filter(e => e.date === '2026-11-24');
+        titleEl.textContent = '오늘(11/24) 제출 내역 (' + list.length + '건)';
         body.innerHTML = list.map(renderEntryItem).join('');
       } else if (mode === 'pending') {
         titleEl.textContent = '발표 대기 검색 · 문자 체크 (' + pendingTargets().length + '건)';
