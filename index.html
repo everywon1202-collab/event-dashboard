@@ -335,7 +335,18 @@
       color: var(--blue);
       padding-top: 8px;
     }
-    .sms-empty { font-size: 12px; color: var(--muted); padding: 8px 0; }
+    .sms-empty { font-size: 12px; color: var(--muted); padding: 8px 0; line-height: 1.45; }
+    .sms-day {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--purple);
+      background: #F3E8FF;
+      border-radius: 5px;
+      padding: 1px 5px;
+      white-space: nowrap;
+    }
 
     .hint {
       text-align: center;
@@ -391,7 +402,7 @@
       <div class="label">발표 확인 <span class="chev">›</span></div>
       <div class="num c-blue" id="annTotal">7</div>
       <div class="sub1" id="annSub1">당첨 1 · 미당첨 4 · 연기 1 · 개별문자 1</div>
-      <div class="sub2" id="annSub2">📩 문자 확인 대기 22건</div>
+      <div class="sub2" id="annSub2">📩 오늘 문자 확인 5건</div>
     </div>
   </div>
 
@@ -463,7 +474,7 @@
           <button class="chip" data-ann="미당첨" onclick="setAnn('미당첨', this)">미당첨 4</button>
           <button class="chip" data-ann="발표연기" onclick="setAnn('발표연기', this)">발표연기 1</button>
           <button class="chip" data-ann="개별문자" onclick="setAnn('개별문자', this)">개별문자 1</button>
-          <button class="chip" data-ann="문자체크" onclick="setAnn('문자체크', this)">📩 문자 확인 22</button>
+          <button class="chip" data-ann="문자체크" onclick="setAnn('문자체크', this)">📩 오늘 문자 확인 5</button>
           <button class="chip" data-ann="발표대기" onclick="setAnn('발표대기', this)">발표대기 190</button>
         </div>
       </div>
@@ -524,6 +535,107 @@
     // 발표 방식을 개별 문자·개별 안내로 알리는 건 (앞으로 추가되는 건도 자동 포함)
     const SMS_HINT = /개별\s?(문자|안내|통지|연락|발송|공지)|별도\s?공지\s?없|문자함|문자\s?수신/;
 
+    // ── 발표일 기준: '발표일 <= 오늘(KST)' 인 건만 오늘 확인 대상으로 본다 ──
+    // 발표일은 상세문구에서 자동으로 뽑고, 문구에 날짜가 없거나 문구가 애매한 건만 아래 표로 고정한다.
+    const ANN_DATE_FIX = {
+      '28': '2026-11-23',   // KERIS — 11/23 발표·개별 문자(아직 미확인)
+      '45': '2026-11-24',   // 청소년방과후아카데미 — 11/24 이후 개별 문자
+      '100': '2026-11-24',  // 여성인권진흥원 — 11/24 발표(홈페이지·개별 안내)
+      '107': '2026-11-24',  // 공공누리 유형 퀴즈 — 11/24 발표(홈페이지 게시판)
+      '173': '2026-11-24'   // 물기술인증원 — 11/24 발표(인스타 DM)
+    };
+    // 결과를 알려주는 방식 (표시용)
+    const ANN_VIA_FIX = {
+      '100': '홈페이지·개별 안내',
+      '107': '홈페이지 게시판',
+      '173': '인스타그램 DM'
+    };
+    // 문구에 '개별 문자' 표현은 없지만 결과가 개별 통지로 오는 오늘 확인 대상
+    const ANN_EXTRA_IDS = { '100': 1, '107': 1, '173': 1 };
+
+    function isoOf(y, m, d) {
+      if (!y || !m || !d || m > 12 || d > 31) return '';
+      const p = function (n) { return (n < 10 ? '0' : '') + n; };
+      return y + '-' + p(m) + '-' + p(d);
+    }
+    function todayISO() {
+      const d = new Date();
+      return isoOf(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    }
+    function mdOf(iso) {
+      if (!iso) return '';
+      const p = iso.split('-');
+      return (+p[1]) + '/' + (+p[2]);
+    }
+    function parseAnnDate(text) {
+      const t = text || '';
+      let m = t.match(/발표[^0-9]{0,10}(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+      if (m) return isoOf(+m[1], +m[2], +m[3]);
+      if (/발표[^0-9]{0,12}20\d{2}년\s*\d{1,2}월/.test(t)) return ''; // '12월 중' 같은 월 단위는 미표기
+      m = t.match(/발표[^0-9]{0,4}(\d{1,2})\s*[\/. ]\s*(\d{1,2})/);
+      if (m) {
+        const now = new Date();
+        let y = now.getFullYear();
+        if (+m[1] < now.getMonth() + 1) y += 1;
+        return isoOf(y, +m[1], +m[2]);
+      }
+      return '';
+    }
+    function annDateOf(e) {
+      const fix = ANN_DATE_FIX[String(e.id)];
+      if (fix) return fix;
+      return parseAnnDate((e.annNote || '') + ' ' + (e.title || '') + ' ' + (e.detail || ''));
+    }
+    function annViaOf(e) {
+      return ANN_VIA_FIX[String(e.id)] || '개별 문자';
+    }
+    function annDayText(e) {
+      const d = annDateOf(e);
+      if (!d) return '';
+      return (d === todayISO() ? '오늘 ' + mdOf(d) : mdOf(d)) + ' 발표 · ' + annViaOf(e);
+    }
+    function isAlreadyDecided(e) {
+      const a = annOf(e);
+      return a === '당첨' || a === '미당첨' || a === '발표연기' || a === '배송대기';
+    }
+    function isSmsCandidate(e) {
+      return isSmsTarget(e) || !!ANN_EXTRA_IDS[String(e.id)];
+    }
+    // 오늘 확인 대상: 발표일이 오늘 이하이고, 아직 결과가 확정되지 않은 개별 통지 건
+    function isTodaySmsTarget(e) {
+      if (!isSmsCandidate(e)) return false;
+      const d = annDateOf(e);
+      if (!d || d > todayISO()) return false;
+      if (!smsCheck(e) && isAlreadyDecided(e)) return false;
+      return true;
+    }
+    // 화면에 문자 체크 버튼을 붙일지 (오늘 대상이거나 이미 기록이 있는 건)
+    function showSmsUI(e) {
+      return !!smsCheck(e) || isTodaySmsTarget(e);
+    }
+    function todaySmsTargets() {
+      return ENTRIES.filter(isTodaySmsTarget).sort(function (x, y) {
+        const cx = smsCheck(x) ? 1 : 0, cy = smsCheck(y) ? 1 : 0;
+        if (cx !== cy) return cx - cy;
+        const dx = annDateOf(x), dy = annDateOf(y);
+        if (dx !== dy) return dx < dy ? -1 : 1;
+        return y.id - x.id;
+      });
+    }
+    function smsSheetTitle() {
+      return '오늘(' + mdOf(todayISO()) + ') 문자 확인 (' + todaySmsTargets().length + '건)';
+    }
+    function nextAnnHint() {
+      const t = todayISO();
+      let best = '';
+      ENTRIES.forEach(function (e) {
+        if (!isSmsCandidate(e) || smsCheck(e) || isAlreadyDecided(e)) return;
+        const d = annDateOf(e);
+        if (d && d > t && (!best || d < best)) best = d;
+      });
+      return best ? ' 다음 개별 문자 발표 ' + mdOf(best) + '.' : '';
+    }
+
     function annOf(e) {
       if (e.ann) return e.ann;
       return e.status === '배송 대기' ? '배송대기' : '발표대기';
@@ -538,19 +650,6 @@
       if (a === '개별문자') return true;
       if (a === '배송대기') return false;
       return SMS_HINT.test((e.annNote || '') + ' ' + (e.title || '') + ' ' + (e.detail || ''));
-    }
-    function smsTargets() {
-      return ENTRIES.filter(isSmsTarget).sort(function (x, y) {
-        const cx = smsCheck(x) ? 1 : 0, cy = smsCheck(y) ? 1 : 0;
-        if (cx !== cy) return cx - cy;
-        const px = annOf(x) === '개별문자' ? 0 : 1, py = annOf(y) === '개별문자' ? 0 : 1;
-        if (px !== py) return px - py;
-        if (x.date !== y.date) return x.date < y.date ? 1 : -1;
-        return y.id - x.id;
-      });
-    }
-    function pendingSmsTargets() {
-      return smsTargets().filter(function (e) { return !smsCheck(e); });
     }
     function annClass(a) {
       if (a === '당첨') return 'green';
@@ -600,7 +699,7 @@
       if (key === '미당첨') return '미당첨 ' + c['미당첨'];
       if (key === '발표연기') return '발표연기 ' + c['발표연기'];
       if (key === '개별문자') return '개별문자 ' + c['개별문자'];
-      if (key === '문자체크') return '📩 문자 확인 ' + ENTRIES.filter(isSmsTarget).length;
+      if (key === '문자체크') return '📩 오늘 문자 확인 ' + todaySmsTargets().length;
       if (key === '발표대기') return '발표대기 ' + c['발표대기'];
       return key;
     }
@@ -624,7 +723,7 @@
       const c = annCounts();
       setText('annTotal', checkedTotal(c));
       setText('annSub1', '당첨 ' + c['당첨'] + ' · 미당첨 ' + c['미당첨'] + ' · 연기 ' + c['발표연기'] + ' · 개별문자 ' + c['개별문자']);
-      setText('annSub2', '📩 문자 확인 대기 ' + pendingSmsTargets().length + '건');
+      setText('annSub2', '📩 오늘 문자 확인 ' + todaySmsTargets().length + '건');
       setText('pendingTotal', c['발표대기']);
       setText('pendingSub2', '무료샘플 배송 대기 ' + c['배송대기']);
       document.querySelectorAll('#annChips .chip').forEach(function (el) {
@@ -656,17 +755,23 @@
       }
       const box = document.getElementById('annSmsBox');
       if (!box) return;
-      const targets = smsTargets();
+      const targets = todaySmsTargets();
       const pending = targets.filter(function (e) { return !smsCheck(e); });
-      let html = '<div class="sms-box-title"><span>📩 문자 확인 대기 ' + pending.length + '건</span><span class="sms-hint">누르면 바로 기록</span></div>';
-      if (!pending.length) {
-        html += '<div class="sms-empty">문자 확인 대상은 모두 체크했어요. 아래에서 다시 눌러 해제할 수 있어요.</div>';
-      }
-      html += pending.slice(0, 3).map(function (e) {
-        return '<div class="sms-mini-row"><div class="sms-mini-title">' + shortTitle(e) + '</div>' + smsBoxHtml(e) + '</div>';
-      }).join('');
-      if (targets.length) {
-        html += '<div class="sms-more" onclick="event.stopPropagation(); openSmsSheet()">문자 확인 전체 ' + targets.length + '건 보기 ›</div>';
+      const today = mdOf(todayISO());
+      let html = '<div class="sms-box-title"><span>📩 오늘(' + today + ') 문자 확인 ' + targets.length + '건</span>'
+        + '<span class="sms-hint">' + (pending.length
+          ? '남은 ' + pending.length + '건 · 누르면 바로 기록'
+          : '모두 기록됨 · 다시 누르면 해제') + '</span></div>';
+      if (!targets.length) {
+        html += '<div class="sms-empty">오늘(' + today + ') 확인할 개별 문자 건이 없어요.' + nextAnnHint() + '</div>';
+      } else {
+        html += targets.slice(0, 6).map(function (e) {
+          return '<div class="sms-mini-row"><div class="sms-mini-title">' + shortTitle(e)
+            + '<span class="sms-day">' + annDayText(e) + '</span></div>' + smsBoxHtml(e) + '</div>';
+        }).join('');
+        if (targets.length > 6) {
+          html += '<div class="sms-more" onclick="event.stopPropagation(); openSmsSheet()">오늘 문자 확인 ' + targets.length + '건 전체 보기 ›</div>';
+        }
       }
       box.innerHTML = html;
     }
@@ -681,7 +786,7 @@
         const titleEl = document.getElementById('sheetTitle');
         if (currentMode === 'anncheck' && titleEl) {
           titleEl.textContent = currentAnn === '문자체크'
-            ? '문자 확인 (' + ENTRIES.filter(isSmsTarget).length + '건)'
+            ? smsSheetTitle()
             : '발표 확인 결과 (' + checkedTotal(annCounts()) + '건)';
         }
         renderEntries();
@@ -695,7 +800,7 @@
       currentAnn = '문자체크';
       selectAnnChip('문자체크');
       const titleEl = document.getElementById('sheetTitle');
-      if (titleEl) titleEl.textContent = '문자 확인 (' + ENTRIES.filter(isSmsTarget).length + '건)';
+      if (titleEl) titleEl.textContent = smsSheetTitle();
       renderEntries();
     }
 
@@ -789,7 +894,7 @@
       if (currentMode === 'anncheck') {
         const titleEl = document.getElementById('sheetTitle');
         if (titleEl) titleEl.textContent = ann === '문자체크'
-          ? '문자 확인 (' + ENTRIES.filter(isSmsTarget).length + '건)'
+          ? smsSheetTitle()
           : '발표 확인 결과 (' + checkedTotal(annCounts()) + '건)';
       }
       renderEntries();
@@ -797,13 +902,13 @@
 
     function renderEntries() {
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
-      const base = currentAnn === '문자체크' ? smsTargets() : ENTRIES;
+      const base = currentAnn === '문자체크' ? todaySmsTargets() : ENTRIES;
       const filtered = base.filter(e => {
         const matchCat = currentCat === '전체' || e.cat === currentCat;
         const a = effAnn(e);
         let matchAnn = true;
         if (currentAnn === '확인완료') matchAnn = isChecked(e);
-        else if (currentAnn === '문자체크') matchAnn = isSmsTarget(e);
+        else if (currentAnn === '문자체크') matchAnn = true;
         else if (currentAnn !== '전체') matchAnn = a === currentAnn;
         const matchQ = !q || e.title.toLowerCase().includes(q) || (e.detail || '').toLowerCase().includes(q);
         return matchCat && matchAnn && matchQ;
@@ -816,17 +921,19 @@
 
     function renderEntryItem(e) {
       const a = effAnn(e);
-      const sms = isSmsTarget(e);
+      const sms = showSmsUI(e);
+      const smsDate = annDateOf(e);
+      const smsFuture = !sms && isSmsCandidate(e) && smsDate && smsDate > todayISO() && !isAlreadyDecided(e);
       return `
         <div class="item">
           <div class="item-top">
             <span>#${e.id} · ${e.date} · ${e.cat}</span>
-            ${sms ? '<span class="badge purple">📩 문자 확인</span>' : ''}
+            ${sms ? '<span class="badge purple">📩 오늘 확인</span>' : (smsFuture ? `<span class="badge gray">📩 ${mdOf(smsDate)} 개별 통지</span>` : '')}
           </div>
           <div class="ann-row">
             <span class="ann-label">발표확인</span>
             <span class="badge ${annClass(a)}">${badgeText(e)}</span>
-            ${e.annNote ? `<span class="ann-note">${e.annNote}</span>` : ''}
+            ${(e.annNote || sms) ? `<span class="ann-note">${e.annNote || annDayText(e)}</span>` : ''}
           </div>
           <div class="item-title">${e.title}</div>
           ${sms ? `<div class="sms-box">${smsBoxHtml(e)}</div>` : ''}
