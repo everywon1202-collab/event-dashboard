@@ -672,6 +672,14 @@
         if (+m[1] < now.getMonth() + 1) y += 1;
         return isoOf(y, +m[1], +m[2]);
       }
+      // '11/24 15:00 발표 확인 예정'처럼 날짜가 발표보다 먼저 오는 문구
+      m = t.match(/(\d{1,2})\s*[\/. ]\s*(\d{1,2})\s*(?:\([^)]{1,10}\))?\s*[\d:시분~\-\s]{0,14}발표/);
+      if (m) {
+        const now = new Date();
+        let y = now.getFullYear();
+        if (+m[1] < now.getMonth() + 1) y += 1;
+        return isoOf(y, +m[1], +m[2]);
+      }
       return '';
     }
     function annDateOf(e) {
@@ -796,6 +804,7 @@
       return q.split(/\s+/).every(function (t) { return hay.indexOf(t) !== -1; });
     }
     function pendSubText(e) {
+      if (annOf(e) === '발표연기') return '발표 연기' + (e.annNote ? ' · ' + e.annNote : '') + ' · 새 발표일 확인';
       const d = annDateOf(e);
       if (!d) return '발표일 미표기 · 문자·공지 오면 여기서 체크';
       if (d <= todayISO()) return mdOf(d) + ' 발표 · ' + annViaOf(e) + ' 확인';
