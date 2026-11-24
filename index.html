@@ -312,6 +312,30 @@
     .sms-btn.yes.on { background: #DCFCE7; border-color: #86EFAC; color: #166534; }
     .sms-btn.no.on { background: #FEE2E2; border-color: #FCA5A5; color: #991B1B; }
     .sms-meta { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.35; }
+    .sms-value {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #166534;
+    }
+    .sms-value input {
+      width: 86px;
+      border: 1px solid #86EFAC;
+      background: #FFFFFF;
+      border-radius: 8px;
+      padding: 5px 7px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #166534;
+      text-align: right;
+      font-family: inherit;
+    }
+    .sms-value input:focus { outline: 2px solid #BBF7D0; }
+    .sms-value .auto { font-size: 10.5px; font-weight: 600; color: #94A3B8; }
     .sms-box-title {
       display: flex;
       justify-content: space-between;
@@ -492,8 +516,8 @@
 
   <div class="card full-card" onclick="openModal('value')">
     <div class="label">당첨 가치 (시장가 추정) <span class="chev">›</span></div>
-    <div class="num c-green">3,000원</div>
-    <div class="sub1">청계천의 빛 3,000원 수령(11/23) · 당첨 1건</div>
+    <div class="num c-green" id="valueTotal">3,000원</div>
+    <div class="sub1" id="valueSub1">청계천의 빛 3,000원 수령(11/23) · 당첨 1건</div>
     <div class="sub2">다음 발표 11/24 15:05 삼성 DAY 11 · 11/25 15:05 삼성 DAY 12</div>
   </div>
 
@@ -597,7 +621,10 @@
         Object.keys(obj).forEach(function (k) {
           const v = obj[k];
           const r = (v && typeof v === 'object') ? v.r : v;
-          if (r === '당첨' || r === '미당첨') out[k] = { r: r, t: (v && v.t) ? v.t : '' };
+          if (r === '당첨' || r === '미당첨') {
+            const val = (v && typeof v === 'object' && typeof v.val === 'number' && isFinite(v.val) && v.val >= 0) ? v.val : undefined;
+            out[k] = { r: r, t: (v && v.t) ? v.t : '', val: val };
+          }
         });
         return out;
       } catch (err) {
@@ -623,6 +650,162 @@
       else SMS_CHECKS[key] = { r: result, t: new Date().toISOString() };
       saveSmsChecks();
       refreshAll();
+    }
+
+    // ── 당첨 가치: 경품 문구에서 금액 자동 추정 + 항목별 직접 입력 금액 합산 ──
+    function fmtWon(v) {
+      return Math.max(0, Math.round(v || 0)).toLocaleString('ko-KR') + '원';
+    }
+    function entryById(id) {
+      const key = String(id);
+      for (let i = 0; i < ENTRIES.length; i++) if (String(ENTRIES[i].id) === key) return ENTRIES[i];
+      return null;
+    }
+    // 문구에서 '원' 금액 후보를 뽑는다. 총액·비용·가액처럼 경품가가 아닌 금액은 건너뛴다.
+    function prizeAmounts(text) {
+      const out = [];
+      const re = /(\d[\d,]*(?:\.\d+)?)\s*(만|천)?\s*원/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const num = parseFloat(m[1].replace(/,/g, ''));
+        if (!isFinite(num)) continue;
+        const v = Math.round(num * (m[2] === '만' ? 10000 : (m[2] === '천' ? 1000 : 1)));
+        if (v < 100 || v > 20000000) continue;
+        // '2026 원북원부산'처럼 숫자 뒤 '원'이 단어의 첫 글자인 경우는 금액이 아니다.
+        const after1 = text.slice(m.index + m[0].length, m.index + m[0].length + 1);
+        if (/[\uAC00-\uD7A3]/.test(after1) && !/^[권대짜]/.test(after1)) continue;
+        const before = text.slice(Math.max(0, m.index - 16), m.index);
+        if (/(총상금|총|배송비|참가비|입장료|수수료|예산|제세|공과금|위약|보증금|비용|가액|원가)\s*$/.test(before)) continue;
+        out.push({ v: v, at: m.index, len: m[0].length });
+      }
+      return out;
+    }
+    // 금액 주변에 경품 표현이 있을수록 경품가일 확률이 높다고 보고 점수를 준다.
+    function prizeScore(text, at, len) {
+      const near = text.slice(Math.max(0, at - 40), at + len + 40);
+      const strong = /경품|상품권|원권|페이(?!지)|쿠폰|기프티콘|상금|시상|상품|굿즈/.test(near) ? 3 : 0;
+      const weak = /커피|치킨|피자|버거|세트|추첨|명|분|음료|라떼|케이크/.test(near) ? 1 : 0;
+      return strong + weak;
+    }
+    // 명시 금액이 없을 때 쓰는 대표 경품 기본값
+    function fallbackPrize(text) {
+      const t = text || '';
+      if (/치킨|교촌|BHC|BBQ|처갓집|굽네|푸라닭|네네/i.test(t)) return 22000;
+      if (/피자/.test(t)) return 25000;
+      if (/맥도날드|버거|햄버거|맘스터치|롯데리아|버거킹|쿼터파운더/i.test(t)) return 9000;
+      if (/커피|아메리카노|투썸|스타벅스|메가커피|컴포즈|이디야|카페|라떼|음료/.test(t)) return 4500;
+      if (/편의점|\bCU\b|GS25|세븐일레븐|상품권|네이버페이|배달의민족|배민|올리브영|문화상품권|문상|기프티콘|쿠폰|페이(?!지)/i.test(t)) return 5000;
+      return 0;
+    }
+    function autoPrizeValue(e) {
+      if (!e) return 0;
+      const text = [e.title || '', e.annNote || '', e.detail || ''].join(' ');
+      const found = prizeAmounts(text);
+      let best = null;
+      found.forEach(function (f) {
+        f.s = prizeScore(text, f.at, f.len);
+        // 점수가 같으면 먼저 나온 금액(보통은 1등·대상 경품)을 쓴다.
+        if (!best || f.s > best.s) best = f;
+      });
+      return best ? best.v : fallbackPrize(text);
+    }
+    // 직접 입력한 금액이 있으면 그 값을, 없으면 문구에서 추정한 값을 쓴다.
+    function prizeValueOf(e) {
+      const s = smsCheck(e);
+      if (s && typeof s.val === 'number' && isFinite(s.val) && s.val >= 0) return s.val;
+      return autoPrizeValue(e);
+    }
+    function winEntries() {
+      return ENTRIES.filter(function (e) { return effAnn(e) === '당첨'; });
+    }
+    function winTotal() {
+      return winEntries().reduce(function (sum, e) { return sum + prizeValueOf(e); }, 0);
+    }
+    function wonName(e) {
+      let t = (e.title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+      if (t.length > 16) t = t.slice(0, 16) + '…';
+      return t;
+    }
+    function updateValueCard() {
+      const list = winEntries().slice().sort(function (a, b) { return prizeValueOf(b) - prizeValueOf(a); });
+      setText('valueTotal', fmtWon(winTotal()));
+      if (!list.length) {
+        setText('valueSub1', '아직 당첨 기록이 없어요');
+        return;
+      }
+      const names = list.slice(0, 2).map(function (e) { return wonName(e) + ' ' + fmtWon(prizeValueOf(e)); }).join(' · ');
+      const more = list.length > 2 ? ' 외 ' + (list.length - 2) + '건' : '';
+      const unknown = list.filter(function (e) { return prizeValueOf(e) <= 0; }).length;
+      setText('valueSub1', names + more + ' · 당첨 ' + list.length + '건' + (unknown ? ' · 금액 미상 ' + unknown + '건' : ''));
+    }
+    function smsValueHtml(e) {
+      const s = smsCheck(e);
+      if (!s || s.r !== '당첨') return '';
+      const auto = autoPrizeValue(e);
+      const manual = (typeof s.val === 'number');
+      const val = manual ? s.val : auto;
+      const note = manual ? '직접 입력' : (auto > 0 ? '자동 추정 ' + fmtWon(auto) : '자동 추정 불가 — 직접 입력');
+      return '<div class="sms-value"><span>당첨 금액:</span>'
+        + '<input type="text" inputmode="numeric" value="' + (val ? val.toLocaleString('ko-KR') : '') + '" placeholder="금액 입력"'
+        + ' onclick="event.stopPropagation()"'
+        + ' oninput="setSmsValue(' + e.id + ', this.value)"'
+        + ' onblur="formatSmsValueInput(' + e.id + ', this)">'
+        + '<span class="unit">원</span>'
+        + '<span class="auto" data-sms-note="' + e.id + '">' + note + '</span>'
+        + '</div>';
+    }
+    function setSmsValue(id, raw) {
+      const key = String(id);
+      const s = SMS_CHECKS[key];
+      if (!s || s.r !== '당첨') return;
+      const digits = String(raw == null ? '' : raw).replace(/[^0-9]/g, '');
+      s.val = digits ? Math.min(parseInt(digits, 10), 100000000) : 0;
+      saveSmsChecks();
+      document.querySelectorAll('[data-sms-note="' + key + '"]').forEach(function (el) { el.textContent = '직접 입력'; });
+      updateValueCard();
+      refreshValueSheet();
+    }
+    function formatSmsValueInput(id, el) {
+      const s = SMS_CHECKS[String(id)];
+      if (!s || !el) return;
+      const v = (typeof s.val === 'number') ? s.val : 0;
+      el.value = v ? v.toLocaleString('ko-KR') : '';
+    }
+    function valueSheetHtml() {
+      const list = winEntries().slice().sort(function (a, b) { return prizeValueOf(b) - prizeValueOf(a); });
+      const total = winTotal();
+      const unknown = list.filter(function (e) { return prizeValueOf(e) <= 0; }).length;
+      let html = '<div class="item"><div class="item-title c-green">현재 누적 당첨 가치: ' + fmtWon(total) + '</div>'
+        + '<div class="item-detail">문자로 당첨 확인한 건과 기존 확정 당첨 건을 합한 금액입니다. 금액은 경품 문구에서 자동 추정하고, 각 항목의 「당첨 금액」 칸에서 직접 고칠 수 있습니다.</div></div>';
+      if (!list.length) {
+        html += '<div class="hint">아직 당첨으로 기록한 건이 없어요. 「발표 확인」·「발표 대기」 목록에서 ✅ 문자 왔음(당첨)을 누르면 여기에 합산됩니다.</div>';
+      } else {
+        html += '<div class="pend-group">🎉 당첨 ' + list.length + '건 · 합계 ' + fmtWon(total) + (unknown ? ' · 금액 미상 ' + unknown + '건' : '') + '</div>';
+        html += list.map(function (e) {
+          const v = prizeValueOf(e);
+          const s = smsCheck(e);
+          const how = !s ? '기존 확정 당첨' : (typeof s.val === 'number' ? '직접 입력' : (v > 0 ? '자동 추정' : '자동 추정 불가'));
+          const when = s && s.t ? smsTimeText(s.t) + ' 기록' : '';
+          return '<div class="item"><div class="item-top"><span>#' + e.id + ' · ' + e.date + ' · ' + e.cat + '</span>'
+            + '<span class="badge green">' + fmtWon(v) + '</span></div>'
+            + '<div class="item-title">' + e.title + '</div>'
+            + '<div class="item-detail">' + (v > 0 ? '' : '금액 미상 — ✅ 문자 왔음(당첨) 버튼 아래 「당첨 금액」 칸에 직접 입력하면 합계에 더해집니다. ')
+            + [when, how].filter(Boolean).join(' · ') + '</div>'
+            + (e.url ? '<a class="item-link" href="' + e.url + '" target="_blank">이벤트/폼 열기 ↗</a>' : '')
+            + '</div>';
+        }).join('');
+        html += '<div class="item"><div class="item-detail">금액을 바꾸려면 해당 항목으로 가서 「당첨 금액」 칸을 고치면 됩니다. 체크를 해제하면 그 금액도 바로 빠집니다.</div></div>';
+      }
+      return html;
+    }
+    function refreshValueSheet() {
+      if (currentMode !== 'value') return;
+      const backdrop = document.getElementById('backdrop');
+      if (!backdrop || !backdrop.classList.contains('open')) return;
+      const body = document.getElementById('sheetBody');
+      if (body) body.innerHTML = valueSheetHtml();
+      const titleEl = document.getElementById('sheetTitle');
+      if (titleEl) titleEl.textContent = '당첨 가치 요약';
     }
 
     // 발표 방식을 개별 문자·개별 안내로 알리는 건 (앞으로 추가되는 건도 자동 포함)
@@ -930,6 +1113,7 @@
         + '<button type="button" class="sms-btn yes' + cls('당첨') + '" onclick="event.stopPropagation(); setSmsCheck(' + e.id + ', \'당첨\')">✅ 문자 왔음(당첨)</button>'
         + '<button type="button" class="sms-btn no' + cls('미당첨') + '" onclick="event.stopPropagation(); setSmsCheck(' + e.id + ', \'미당첨\')">❌ 안 왔음(미당첨)</button>'
         + '</div>'
+        + smsValueHtml(e)
         + (meta ? '<div class="sms-meta">' + meta + '</div>' : '');
     }
     function shortTitle(e) {
@@ -996,6 +1180,7 @@
     function refreshAll() {
       refreshCounters();
       renderHomeAnnResult();
+      updateValueCard();
       const backdrop = document.getElementById('backdrop');
       if (!backdrop || !backdrop.classList.contains('open')) return;
       const body = document.getElementById('sheetBody');
@@ -1015,6 +1200,8 @@
         renderPendingList();
       } else if (currentMode === 'today' || currentMode === 'deadline') {
         openModal(currentMode);
+      } else if (currentMode === 'value') {
+        refreshValueSheet();
       }
     }
     function openSmsSheet() {
@@ -1081,12 +1268,7 @@
         `).join('');
       } else if (mode === 'value') {
         titleEl.textContent = '당첨 가치 요약';
-        body.innerHTML = `
-          <div class="item">
-            <div class="item-title c-green">현재 누적 당첨 가치: 3,000원</div>
-            <div class="item-detail">청계천의 빛 「빛나는 나의 꿈」 메시지 공모 — 편의점 모바일 상품권 3,000원 1건(11/23 수령). 발표 확인 완료 ${c['당첨'] + c['미당첨'] + c['발표연기'] + c['개별문자']}건 중 당첨 ${c['당첨']}건, 미당첨 ${c['미당첨']}건. 발표 대기 ${c['발표대기']}건은 11/24 15:05 삼성 DAY 11부터 이어집니다.</div>
-          </div>
-        `;
+        body.innerHTML = valueSheetHtml();
       }
       backdrop.classList.add('open');
     }
@@ -1166,6 +1348,7 @@
     (function initDashboard() {
       refreshCounters();
       renderHomeAnnResult();
+      updateValueCard();
     })();
   </script>
 </body>
