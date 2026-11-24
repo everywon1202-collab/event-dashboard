@@ -786,6 +786,12 @@
       currentAnn = ann;
       document.querySelectorAll('#annChips .chip').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
+      if (currentMode === 'anncheck') {
+        const titleEl = document.getElementById('sheetTitle');
+        if (titleEl) titleEl.textContent = ann === '문자체크'
+          ? '문자 확인 (' + ENTRIES.filter(isSmsTarget).length + '건)'
+          : '발표 확인 결과 (' + checkedTotal(annCounts()) + '건)';
+      }
       renderEntries();
     }
 
