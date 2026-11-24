@@ -354,6 +354,86 @@
       color: var(--muted);
       margin-top: 10px;
     }
+
+    /* 홈 통합 검색 진입 */
+    .home-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 11px 14px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: text;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+    .home-search .ico { font-size: 14px; }
+
+    /* 발표 대기 검색 목록 (클릭 → 아코디언 문자 체크) */
+    .pend-count {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 2px 0 6px;
+    }
+    .pend-count b { color: var(--text); }
+    .pend-group {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      padding: 12px 0 2px;
+      border-bottom: 1px solid #F1F5F9;
+    }
+    .pend-head { cursor: pointer; padding: 2px 0; }
+    .pend-head:active { opacity: 0.7; }
+    .pend-line {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .pend-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .pend-title .arrow { font-size: 10.5px; color: #94A3B8; flex-shrink: 0; padding-top: 4px; }
+    .pend-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .pend-body { margin-top: 4px; }
+    .pend-sched {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 12.5px;
+      color: var(--sub);
+    }
+    .pend-sched summary { font-weight: 700; cursor: pointer; color: var(--blue); }
+    .sms-toggle {
+      border: 1px solid #DDD6FE;
+      background: #F5F3FF;
+      color: #6B21A8;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .sms-toggle:active { transform: scale(0.97); }
   </style>
 </head>
 <body>
@@ -361,6 +441,10 @@
     <h1>응모 현황판</h1>
     <span class="date">기준일 2026-11-24 (KST)</span>
   </header>
+
+  <div class="home-search" onclick="openGlobalSearch()" role="button" aria-label="통합 검색">
+    <span class="ico">🔍</span><span>통합 검색 — 기관·이벤트명·#번호 (발표 대기 포함)</span>
+  </div>
 
   <div class="grid">
     <div class="card" onclick="openModal('all')">
@@ -476,6 +560,15 @@
           <button class="chip" data-ann="개별문자" onclick="setAnn('개별문자', this)">개별문자 1</button>
           <button class="chip" data-ann="문자체크" onclick="setAnn('문자체크', this)">📩 오늘 문자 확인 5</button>
           <button class="chip" data-ann="발표대기" onclick="setAnn('발표대기', this)">발표대기 190</button>
+        </div>
+      </div>
+      <div class="sheet-controls" id="pendControls">
+        <input class="search-input" id="pendSearch" type="text" placeholder="발표 대기 검색 (기관·이벤트명·#번호)" oninput="renderPendingList()" />
+        <div class="chips" id="pendChips">
+          <button class="chip active" data-pf="전체" onclick="setPendFilter('전체', this)">전체</button>
+          <button class="chip" data-pf="미확인" onclick="setPendFilter('미확인', this)">문자 미확인</button>
+          <button class="chip" data-pf="당첨" onclick="setPendFilter('당첨', this)">✅ 왔음</button>
+          <button class="chip" data-pf="미당첨" onclick="setPendFilter('미당첨', this)">❌ 안 옴</button>
         </div>
       </div>
       <div class="sheet-body" id="sheetBody"></div>
@@ -672,6 +765,122 @@
       const a = effAnn(e);
       return a === '당첨' || a === '미당첨' || a === '발표연기' || a === '개별문자';
     }
+
+    // ── 발표 대기(결과 미확정) 건 검색 + 클릭해서 문자 체크 ──
+    // 대상: 아직 당첨/미당첨이 확정되지 않은 건 전체(발표일 미래·미표기 포함), 무료샘플 배송 대기는 제외
+    function isPendingTarget(e) {
+      const a = annOf(e);
+      return a === '발표대기' || a === '발표연기';
+    }
+    let pendFilter = '전체';
+    let PEND_OPEN = {};
+    let INLINE_OPEN = {};
+
+    function pendingTargets() {
+      return ENTRIES.filter(isPendingTarget);
+    }
+    function pendDateKey(e) {
+      return annDateOf(e) || '9999-12-31';
+    }
+    function pendSort(a, b) {
+      const da = pendDateKey(a), db = pendDateKey(b);
+      if (da !== db) return da < db ? -1 : 1;
+      return b.id - a.id;
+    }
+    function pendCheckedCount() {
+      return pendingTargets().filter(function (e) { return !!smsCheck(e); }).length;
+    }
+    function pendMatch(e, q) {
+      if (!q) return true;
+      const hay = (e.title + ' ' + (e.detail || '') + ' ' + e.cat + ' #' + e.id + ' ' + (e.annNote || '')).toLowerCase();
+      return q.split(/\s+/).every(function (t) { return hay.indexOf(t) !== -1; });
+    }
+    function pendSubText(e) {
+      const d = annDateOf(e);
+      if (!d) return '발표일 미표기 · 문자·공지 오면 여기서 체크';
+      if (d <= todayISO()) return mdOf(d) + ' 발표 · ' + annViaOf(e) + ' 확인';
+      return mdOf(d) + ' 발표 예정 · ' + annViaOf(e);
+    }
+    function togglePend(id) {
+      PEND_OPEN[String(id)] = !PEND_OPEN[String(id)];
+      renderPendingList();
+    }
+    function toggleInlineSms(id) {
+      INLINE_OPEN[String(id)] = !INLINE_OPEN[String(id)];
+      renderEntries();
+    }
+    function setPendFilter(f, btn) {
+      pendFilter = f;
+      document.querySelectorAll('#pendChips .chip').forEach(function (c) { c.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      renderPendingList();
+    }
+    function renderPendItem(e) {
+      const open = !!PEND_OPEN[String(e.id)];
+      const s = smsCheck(e);
+      const a = effAnn(e);
+      return '<div class="item pend-item">'
+        + '<div class="pend-head" onclick="togglePend(' + e.id + ')">'
+        + '<div class="pend-line"><span>#' + e.id + ' · ' + e.date + ' · ' + e.cat + '</span>'
+        + '<span class="badge ' + annClass(a) + '">' + badgeText(e) + '</span>'
+        + (s ? '<span class="badge purple">📩 기록됨</span>' : '')
+        + '</div>'
+        + '<div class="pend-title"><span>' + e.title + '</span><span class="arrow">' + (open ? '▲' : '▼') + '</span></div>'
+        + '<div class="pend-sub">' + pendSubText(e) + (open ? '' : ' · 눌러서 문자 체크') + '</div>'
+        + '</div>'
+        + (open ? '<div class="pend-body sms-box">' + smsBoxHtml(e)
+            + (e.annNote ? '<div class="sms-meta">발표 메모: ' + e.annNote + '</div>' : '')
+            + (e.detail ? '<div class="item-detail" style="margin-top:6px;">' + e.detail + '</div>' : '')
+            + (e.url ? '<a class="item-link" href="' + e.url + '" target="_blank">이벤트/폼 열기 ↗</a>' : '')
+            + '</div>' : '')
+        + '</div>';
+    }
+    function renderPendingList() {
+      const body = document.getElementById('sheetBody');
+      if (!body) return;
+      const st = body.scrollTop;
+      const qEl = document.getElementById('pendSearch');
+      const q = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
+      const all = pendingTargets();
+      let list = all.filter(function (e) { return pendMatch(e, q); });
+      if (pendFilter === '미확인') list = list.filter(function (e) { return !smsCheck(e); });
+      else if (pendFilter === '당첨') list = list.filter(function (e) { return effAnn(e) === '당첨'; });
+      else if (pendFilter === '미당첨') list = list.filter(function (e) { return effAnn(e) === '미당첨'; });
+      const dated = list.filter(function (e) { return !!annDateOf(e); }).sort(pendSort);
+      const undated = list.filter(function (e) { return !annDateOf(e); }).sort(function (a, b) { return b.id - a.id; });
+      let html = '<div class="pend-count"><span>발표 대기 <b>' + all.length + '</b>건 · 검색 결과 <b>' + list.length + '</b>건</span>'
+        + '<span>문자 체크 <b>' + pendCheckedCount() + '</b>건</span></div>';
+      if (!list.length) {
+        html += '<div class="hint">검색 결과가 없어요</div>';
+      } else {
+        if (dated.length) html += '<div class="pend-group">📅 발표일 있는 건 ' + dated.length + '</div>' + dated.map(renderPendItem).join('');
+        if (undated.length) html += '<div class="pend-group">❔ 발표일 미표기 ' + undated.length + '</div>' + undated.map(renderPendItem).join('');
+      }
+      html += '<details class="pend-sched"><summary>다가오는 발표 일정 보기</summary>' + scheduleBlockHtml(annCounts()) + '</details>';
+      body.innerHTML = html;
+      body.scrollTop = st;
+    }
+    function scheduleBlockHtml(c) {
+      const t = todayISO();
+      const due = pendingTargets().filter(function (e) { const d = annDateOf(e); return d && d <= t; })
+        .sort(pendSort);
+      let html = SCHEDULES.map(function (s) {
+        return '<div class="item"><div class="item-title c-blue">' + s.date + '</div>'
+          + '<div class="item-detail">' + s.items.map(function (i) { return '• ' + i; }).join('<br>') + '</div></div>';
+      }).join('');
+      if (due.length) {
+        html += '<div class="item"><div class="item-title">발표일이 지났는데 아직 결과 확인 전 (' + due.length + '건)</div>'
+          + '<div class="item-detail">' + due.map(function (e) { return '• ' + shortTitle(e) + ' — ' + pendSubText(e); }).join('<br>') + '</div></div>';
+      }
+      html += '<div class="item"><div class="item-title">무료샘플 배송 대기 (' + c['배송대기'] + '건)</div>'
+        + '<div class="item-detail">쁘리마쥬 · 레이아드 · 닥터엣 · 닥터에스리 (11/16 신청 완료)</div></div>';
+      return html;
+    }
+    function openGlobalSearch() {
+      openModal('all');
+      const inp = document.getElementById('searchInput');
+      if (inp) setTimeout(function () { try { inp.focus(); } catch (err) {} }, 80);
+    }
     function checkedTotal(c) {
       return c['당첨'] + c['미당첨'] + c['발표연기'] + c['개별문자'];
     }
@@ -791,6 +1000,10 @@
         }
         renderEntries();
         if (body) body.scrollTop = st;
+      } else if (currentMode === 'pending') {
+        const titleEl = document.getElementById('sheetTitle');
+        if (titleEl) titleEl.textContent = '발표 대기 검색 · 문자 체크 (' + pendingTargets().length + '건)';
+        renderPendingList();
       } else if (currentMode === 'today' || currentMode === 'deadline') {
         openModal(currentMode);
       }
@@ -813,6 +1026,7 @@
       const controls = document.getElementById('sheetControls');
       const body = document.getElementById('sheetBody');
       controls.classList.remove('show');
+      document.getElementById('pendControls').classList.remove('show');
       document.getElementById('searchInput').value = '';
       chipRow('catChips', 0);
       selectAnnChip(mode === 'anncheck' ? '확인완료' : '전체');
@@ -832,22 +1046,14 @@
         const list = ENTRIES.filter(e => e.date === '2026-11-24');
         body.innerHTML = list.map(renderEntryItem).join('');
       } else if (mode === 'pending') {
-        titleEl.textContent = '발표 대기 · 확인 일정 (' + c['발표대기'] + '건)';
-        body.innerHTML = SCHEDULES.map(s => `
-          <div class="item">
-            <div class="item-title c-blue">${s.date}</div>
-            <div class="item-detail">${s.items.map(i => '• ' + i).join('<br>')}</div>
-          </div>
-        `).join('') + `
-          <div class="item">
-            <div class="item-title">오늘(11/24) 15:00~ 발표 · 09:15 기준 미게시</div>
-            <div class="item-detail">• #100 여성인권진흥원 의견수렴 조사 (음료 쿠폰 50명) — 홈페이지 공지·개별 발송<br>• #107 공공누리 유형 퀴즈 (이디야 아메리카노 100명) — 당첨자 발표 게시판에 아직 없음<br>• #173 한국물기술인증원 인스타 댓글 (스타벅스 7명) — 인스타 발표·DM 확인<br>• #45 청소년방과후아카데미 투표 (11/24 이후 개별 문자)</div>
-          </div>
-          <div class="item">
-            <div class="item-title">무료샘플 배송 대기 (${c['배송대기']}건)</div>
-            <div class="item-detail">쁘리마쥬 · 레이아드 · 닥터엣 · 닥터에스리 (11/16 신청 완료)</div>
-          </div>
-        `;
+        titleEl.textContent = '발표 대기 검색 · 문자 체크 (' + pendingTargets().length + '건)';
+        document.getElementById('pendSearch').value = '';
+        pendFilter = '전체';
+        document.querySelectorAll('#pendChips .chip').forEach(function (ch, ix) { ch.classList.toggle('active', ix === 0); });
+        PEND_OPEN = {};
+        document.getElementById('pendControls').classList.add('show');
+        renderPendingList();
+        body.scrollTop = 0;
       } else if (mode === 'deadline') {
         titleEl.textContent = '오늘(11/24) 마감 건 (10건)';
         body.innerHTML = TODAY_DEADLINES.map(renderEntryItem).join('');
@@ -924,6 +1130,9 @@
       const sms = showSmsUI(e);
       const smsDate = annDateOf(e);
       const smsFuture = !sms && isSmsCandidate(e) && smsDate && smsDate > todayISO() && !isAlreadyDecided(e);
+      const canCheck = !sms && isPendingTarget(e);
+      const inlineOpen = canCheck && !!INLINE_OPEN[String(e.id)];
+      const toggleLabel = inlineOpen ? '× 문자 체크 닫기' : (smsCheck(e) ? '📩 문자 체크 수정' : '📩 문자 체크');
       return `
         <div class="item">
           <div class="item-top">
@@ -933,10 +1142,12 @@
           <div class="ann-row">
             <span class="ann-label">발표확인</span>
             <span class="badge ${annClass(a)}">${badgeText(e)}</span>
+            ${canCheck ? `<button type="button" class="sms-toggle" onclick="event.stopPropagation(); toggleInlineSms(${e.id})">${toggleLabel}</button>` : ''}
             ${(e.annNote || sms) ? `<span class="ann-note">${e.annNote || annDayText(e)}</span>` : ''}
           </div>
           <div class="item-title">${e.title}</div>
           ${sms ? `<div class="sms-box">${smsBoxHtml(e)}</div>` : ''}
+          ${inlineOpen ? `<div class="sms-box">${smsBoxHtml(e)}</div>` : ''}
           ${e.detail ? `<div class="item-detail">${e.detail}</div>` : ''}
           ${e.url ? `<a class="item-link" href="${e.url}" target="_blank">이벤트/폼 열기 ↗</a>` : ''}
         </div>
