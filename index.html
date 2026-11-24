@@ -608,14 +608,12 @@
       const s = smsCheck(e);
       const cls = function (want) { return (s && s.r === want) ? ' on' : ''; };
       const when = s ? smsTimeText(s.t) : '';
-      const meta = s
-        ? (when ? when + ' 기록 · ' : '') + '다시 누르면 해제'
-        : '문자가 왔으면 왼쪽, 안 왔으면 오른쪽을 눌러 주세요';
+      const meta = s ? (when ? when + ' 기록 · ' : '') + '다시 누르면 해제' : '';
       return '<div class="sms-row">'
         + '<button type="button" class="sms-btn yes' + cls('당첨') + '" onclick="event.stopPropagation(); setSmsCheck(' + e.id + ', \'당첨\')">✅ 문자 왔음(당첨)</button>'
         + '<button type="button" class="sms-btn no' + cls('미당첨') + '" onclick="event.stopPropagation(); setSmsCheck(' + e.id + ', \'미당첨\')">❌ 안 왔음(미당첨)</button>'
         + '</div>'
-        + '<div class="sms-meta">' + meta + '</div>';
+        + (meta ? '<div class="sms-meta">' + meta + '</div>' : '');
     }
     function shortTitle(e) {
       let t = (e.title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
@@ -793,7 +791,8 @@
 
     function renderEntries() {
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
-      const filtered = ENTRIES.filter(e => {
+      const base = currentAnn === '문자체크' ? smsTargets() : ENTRIES;
+      const filtered = base.filter(e => {
         const matchCat = currentCat === '전체' || e.cat === currentCat;
         const a = effAnn(e);
         let matchAnn = true;
@@ -823,8 +822,8 @@
             <span class="badge ${annClass(a)}">${badgeText(e)}</span>
             ${e.annNote ? `<span class="ann-note">${e.annNote}</span>` : ''}
           </div>
-          ${sms ? `<div class="sms-box">${smsBoxHtml(e)}</div>` : ''}
           <div class="item-title">${e.title}</div>
+          ${sms ? `<div class="sms-box">${smsBoxHtml(e)}</div>` : ''}
           ${e.detail ? `<div class="item-detail">${e.detail}</div>` : ''}
           ${e.url ? `<a class="item-link" href="${e.url}" target="_blank">이벤트/폼 열기 ↗</a>` : ''}
         </div>
