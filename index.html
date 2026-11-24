@@ -391,7 +391,7 @@
       <div class="label">발표 확인 <span class="chev">›</span></div>
       <div class="num c-blue" id="annTotal">7</div>
       <div class="sub1" id="annSub1">당첨 1 · 미당첨 4 · 연기 1 · 개별문자 1</div>
-      <div class="sub2" id="annSub2">📩 문자 확인 대기 21건</div>
+      <div class="sub2" id="annSub2">📩 문자 확인 대기 22건</div>
     </div>
   </div>
 
@@ -543,6 +543,8 @@
       return ENTRIES.filter(isSmsTarget).sort(function (x, y) {
         const cx = smsCheck(x) ? 1 : 0, cy = smsCheck(y) ? 1 : 0;
         if (cx !== cy) return cx - cy;
+        const px = annOf(x) === '개별문자' ? 0 : 1, py = annOf(y) === '개별문자' ? 0 : 1;
+        if (px !== py) return px - py;
         if (x.date !== y.date) return x.date < y.date ? 1 : -1;
         return y.id - x.id;
       });
