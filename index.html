@@ -514,6 +514,16 @@
     </div>
   </div>
 
+  <div class="card full-card" onclick="openModal('todayAnn')">
+    <div class="section-title">
+      <span id="todayAnnTitle">📣 오늘 발표</span>
+      <span class="chev" style="font-size:12px;color:#94A3B8;">전체보기 ›</span>
+    </div>
+    <div class="num c-blue" id="todayAnnTotal">0</div>
+    <div class="sub1" id="todayAnnSub1">확인 대기 0 · 확인 완료 0</div>
+    <div id="todayAnnRows" style="margin-top:8px;"></div>
+  </div>
+
   <div class="card full-card" onclick="openModal('value')">
     <div class="label">당첨 가치 (시장가 추정) <span class="chev">›</span></div>
     <div class="num c-green" id="valueTotal">3,000원</div>
@@ -868,6 +878,7 @@
     function annDateOf(e) {
       const fix = ANN_DATE_FIX[String(e.id)];
       if (fix) return fix;
+      if (e.announce && /^\d{4}-\d{2}-\d{2}$/.test(e.announce)) return e.announce;
       return parseAnnDate((e.annNote || '') + ' ' + (e.title || '') + ' ' + (e.detail || ''));
     }
     function annViaOf(e) {
@@ -1177,8 +1188,44 @@
       }
       box.innerHTML = html;
     }
+    function todayAnnTargets() {
+      const t = todayISO();
+      return ENTRIES.filter(function (e) {
+        return annDateOf(e) === t;
+      }).sort(function (x, y) {
+        const dx = isChecked(x) ? 1 : 0, dy = isChecked(y) ? 1 : 0;
+        if (dx !== dy) return dx - dy;
+        return y.id - x.id;
+      });
+    }
+    function renderHomeTodayAnn() {
+      const today = mdOf(todayISO());
+      const list = todayAnnTargets();
+      const doneCount = list.filter(isChecked).length;
+      const waitCount = list.length - doneCount;
+      const titleEl = document.getElementById('todayAnnTitle');
+      if (titleEl) titleEl.textContent = '📣 오늘(' + today + ') 발표';
+      setText('todayAnnTotal', list.length);
+      setText('todayAnnSub1', '확인 대기 ' + waitCount + ' · 확인 완료 ' + doneCount);
+      const rows = document.getElementById('todayAnnRows');
+      if (!rows) return;
+      if (!list.length) {
+        rows.innerHTML = '<div class="sms-empty">오늘(' + today + ') 발표 예정인 이벤트가 없어요.</div>';
+        return;
+      }
+      let html = list.slice(0, 5).map(function (e) {
+        const a = effAnn(e);
+        const cls = a === '당첨' ? 'c-green' : (a === '미당첨' ? 'c-red' : (a === '발표연기' ? 'c-orange' : 'c-blue'));
+        return '<div class="mini-row"><span class="mini-tag ' + cls + '">' + badgeText(e) + '</span><span class="mini-desc">' + shortTitle(e) + '</span></div>';
+      }).join('');
+      if (list.length > 5) {
+        html += '<div class="sms-more">오늘 발표 ' + list.length + '건 전체 보기 ›</div>';
+      }
+      rows.innerHTML = html;
+    }
     function refreshAll() {
       refreshCounters();
+      renderHomeTodayAnn();
       renderHomeAnnResult();
       updateValueCard();
       const backdrop = document.getElementById('backdrop');
@@ -1198,8 +1245,9 @@
         const titleEl = document.getElementById('sheetTitle');
         if (titleEl) titleEl.textContent = '발표 대기 검색 · 문자 체크 (' + pendingTargets().length + '건)';
         renderPendingList();
-      } else if (currentMode === 'today' || currentMode === 'deadline') {
+      } else if (currentMode === 'today' || currentMode === 'deadline' || currentMode === 'todayAnn') {
         openModal(currentMode);
+        if (body) body.scrollTop = st;
       } else if (currentMode === 'value') {
         refreshValueSheet();
       }
@@ -1237,9 +1285,16 @@
         titleEl.textContent = '발표 확인 결과 (' + checked + '건)';
         controls.classList.add('show');
         renderEntries();
+      } else if (mode === 'todayAnn') {
+        const list = todayAnnTargets();
+        titleEl.textContent = '오늘(' + mdOf(todayISO()) + ') 발표 (' + list.length + '건)';
+        body.innerHTML = list.length
+          ? list.map(renderEntryItem).join('')
+          : '<div class="hint">오늘(' + mdOf(todayISO()) + ') 발표 예정인 이벤트가 없어요.</div>';
       } else if (mode === 'today') {
-        const list = ENTRIES.filter(e => e.date === '2026-11-25');
-        titleEl.textContent = '오늘(11/25) 제출 내역 (' + list.length + '건)';
+        const t = todayISO();
+        const list = ENTRIES.filter(e => e.date === t);
+        titleEl.textContent = '오늘(' + mdOf(t) + ') 제출 내역 (' + list.length + '건)';
         body.innerHTML = list.map(renderEntryItem).join('');
       } else if (mode === 'pending') {
         titleEl.textContent = '발표 대기 검색 · 문자 체크 (' + pendingTargets().length + '건)';
@@ -1347,6 +1402,7 @@
 
     (function initDashboard() {
       refreshCounters();
+      renderHomeTodayAnn();
       renderHomeAnnResult();
       updateValueCard();
     })();
