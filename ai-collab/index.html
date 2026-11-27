@@ -1905,6 +1905,7 @@ function tick(){
   const anyCool = ["claude","gemini"].some(f => state.accounts[f].some(a => a.status === "cool" && a.cooldownUntil));
   if (!anyCool) return;
   const expired = refreshCoolTags();
+  renderOrder();
   if (expired){
     ["claude","gemini"].forEach(f => state.accounts[f].forEach(a => {
       if (a.status === "cool" && a.cooldownUntil && Date.now() >= a.cooldownUntil){
