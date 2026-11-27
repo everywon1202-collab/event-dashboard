@@ -1503,7 +1503,7 @@ def main():
             if ok and str(out).strip():
                 model = CLAUDE_MODEL if f == "claude" else GEMINI_MODEL
                 head = "### %s · %s (계정 #%d/%d)\n" % (NAME[f], role_label, idx, total)
-                meta = "> 전략 `%s` · 모델 `%s` · 트리거 `%s`\n\n" % (STRATEGY, model, TRIGGER)
+                meta = "> 전략: %s · 모델: %s · 트리거: %s\n\n" % (STRATEGY, model, TRIGGER)
                 foot = ("\n\n---\n<sub>AI 협업 자동 응답 · 계정 %d/%d · "
                         "[실행 로그](https://github.com/%s/actions/runs/%s)</sub>\n") % (idx, total, REPO, RUN_ID)
                 comment(num, head + meta + str(out).strip() + foot)
