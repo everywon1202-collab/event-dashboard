@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI 협업 콘솔 · GitHub × Claude × Gemini</title>
+<meta name="description" content="GitHub 저장소에서 Claude(최대 3계정)와 Gemini(최대 4계정)가 역할과 한도를 나눠 협업하는 콘솔. 작업 보드, 계정 로테이션, GitHub Actions 워크플로 생성." />
+<style>
+:root{
+  --bg:#080b11; --bg2:#0d111a; --panel:#111623; --panel2:#161d2c; --panel3:#1b2333;
+  --line:#232c3e; --line2:#2e3a52;
+  --text:#e9edf6; --muted:#93a0b8; --dim:#64718a;
+  --claude:#e08a63; --claude-soft:rgba(224,138,99,.14);
+  --gemini:#6b9dff; --gemini-soft:rgba(107,157,255,.14);
+  --ok:#3ddc97; --warn:#f5c451; --danger:#ff6b6b; --accent:#8b8cff;
+  --radius:14px; --radius-sm:10px;
+  --shadow:0 10px 30px rgba(0,0,0,.38);
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+[data-theme="light"]{
+  --bg:#f2f5fb; --bg2:#e9eefa; --panel:#ffffff; --panel2:#f6f8fd; --panel3:#eef2fa;
+  --line:#dce3f0; --line2:#c8d3e6;
+  --text:#111827; --muted:#5b6880; --dim:#8a97ad;
+  --claude:#c2632f; --claude-soft:rgba(194,99,47,.10);
+  --gemini:#2f63d6; --gemini-soft:rgba(47,99,214,.10);
+  --ok:#0f9d63; --warn:#b07d09; --danger:#d64545; --accent:#5b5bd6;
+  --shadow:0 10px 28px rgba(24,38,70,.10);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1100px 560px at 12% -12%, rgba(139,140,255,.13), transparent 60%),
+    radial-gradient(900px 500px at 96% -6%, rgba(224,138,99,.10), transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--text);
+  font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  font-size:14px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+h1,h2,h3,h4,p{margin:0}
+a{color:var(--gemini);text-decoration:none}
+a:hover{text-decoration:underline}
+::selection{background:rgba(139,140,255,.35)}
+
+/* ── top bar ─────────────────────────────────────────── */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:12px 20px;
+  background:var(--bg);
+  background:color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter:blur(14px) saturate(140%);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.logo{
+  width:36px;height:36px;border-radius:11px;flex:0 0 auto;
+  display:grid;place-items:center;font-size:17px;
+  background:linear-gradient(140deg,var(--claude) 0%,var(--accent) 52%,var(--gemini) 100%);
+  color:#fff;box-shadow:0 4px 14px rgba(139,140,255,.35);
+}
+.brand h1{font-size:15.5px;font-weight:800;letter-spacing:-.3px;white-space:nowrap}
+.brand p{font-size:11.5px;color:var(--dim);letter-spacing:.02em}
+.topbar-mid{margin-left:auto;order:2}
+.topbar-right{display:flex;align-items:center;gap:8px;order:3}
+@media (max-width:820px){ .topbar-mid{order:4;margin:4px 0 0;width:100%} .topbar-mid .seg{width:100%} .topbar-mid .seg button{flex:1} }
+
+.save-state{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim);white-space:nowrap}
+.save-state .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);transition:.2s}
+.save-state.saving .dot{background:var(--warn);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ── generic controls ────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:1px solid var(--line2); background:var(--panel2); color:var(--text);
+  padding:8px 13px; border-radius:var(--radius-sm); cursor:pointer;
+  font-size:12.5px; font-weight:600; white-space:nowrap;
+  transition:background .15s, border-color .15s, transform .06s;
+}
+.btn:hover{background:var(--panel3);border-color:var(--line2)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{
+  background:linear-gradient(135deg,var(--accent),#6f74f5);border-color:transparent;color:#fff;
+  box-shadow:0 4px 14px rgba(139,140,255,.28);
+}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger);border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.07)}
+.btn.sm{padding:5px 9px;font-size:11.5px;border-radius:8px}
+.btn.icon{padding:7px 9px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-row{display:flex;flex-wrap:wrap;gap:7px}
+
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+.seg button{
+  border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:8px;
+  font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:.15s;
+}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.28), inset 0 0 0 1px var(--line)}
+.seg.sm button{padding:5px 9px;font-size:11.5px}
+.seg.full{display:flex;width:100%}
+.seg.full button{flex:1}
+
+label.fld{display:flex;flex-direction:column;gap:5px;font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  background:var(--bg2); border:1px solid var(--line); border-radius:9px;
+  padding:8px 10px; color:var(--text); font-size:13px; width:100%; outline:none;
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,140,255,.14)}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+textarea{resize:vertical;min-height:76px;line-height:1.5}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 15px) 51%,calc(100% - 10px) 51%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:30px}
+input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:4px;background:var(--line);outline:none;padding:0;border:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--text);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--line2);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border:2px solid var(--bg);border-radius:50%;background:var(--text);cursor:pointer}
+
+.hint{font-size:11.5px;color:var(--dim);line-height:1.5}
+.mono{font-family:var(--mono)}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;
+  background:var(--panel3);color:var(--muted);border:1px solid var(--line);
+}
+.pill.ok{color:var(--ok);border-color:rgba(61,220,151,.32);background:rgba(61,220,151,.09)}
+.pill.warn{color:var(--warn);border-color:rgba(245,196,81,.32);background:rgba(245,196,81,.09)}
+.pill.bad{color:var(--danger);border-color:rgba(255,107,107,.32);background:rgba(255,107,107,.09)}
+.pill.claude{color:var(--claude);border-color:rgba(224,138,99,.35);background:var(--claude-soft)}
+.pill.gemini{color:var(--gemini);border-color:rgba(107,157,255,.35);background:var(--gemini-soft)}
+
+/* ── layout ──────────────────────────────────────────── */
+.layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;padding:18px 20px 60px;max-width:1660px;margin:0 auto;align-items:start}
+@media (max-width:1180px){ .layout{grid-template-columns:1fr;gap:14px;padding:14px 12px 80px} }
+.pane{display:none;flex-direction:column;gap:16px}
+.pane.on{display:flex}
+.card{
+  background:var(--panel);
+  background:linear-gradient(180deg,var(--panel) 0%,color-mix(in srgb,var(--panel) 88%, var(--bg2)) 100%);
+  border:1px solid var(--line); border-radius:var(--radius); padding:15px;
+  box-shadow:var(--shadow); min-width:0;
+}
+.card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:11px}
+.card-head h2{font-size:13.5px;font-weight:800;letter-spacing:-.2px}
+.card-head .spacer{margin-left:auto}
+.card-head .sub{font-size:11.5px;color:var(--dim)}
+.sidebar{display:flex;flex-direction:column;gap:13px;position:sticky;top:76px}
+@media (max-width:1180px){ .sidebar{position:static} }
+
+/* ── account cards ───────────────────────────────────── */
+.acct-group{margin-top:2px}
+.grp-title{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:10px 2px 7px}
+.grp-title .bar{width:3px;height:12px;border-radius:2px}
+.claude .bar{background:var(--claude)} .gemini .bar{background:var(--gemini)}
+.acct{
+  position:relative; border:1px solid var(--line); border-radius:11px; background:var(--panel2);
+  padding:9px 11px 10px; margin-bottom:7px; transition:.16s;
+}
+.acct.claude{border-left:3px solid var(--claude)}
+.acct.gemini{border-left:3px solid var(--gemini)}
+.acct.off{opacity:.42;filter:saturate(.4);border-left-color:var(--line2)}
+.acct-top{display:flex;align-items:center;gap:7px}
+.acct-name{font-weight:700;font-size:12.5px;letter-spacing:-.1px}
+.acct .secret{font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-left:auto;letter-spacing:-.2px}
+.status-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+.status-dot.active{background:var(--ok);box-shadow:0 0 0 3px rgba(61,220,151,.16)}
+.status-dot.cool{background:var(--warn);box-shadow:0 0 0 3px rgba(245,196,81,.16)}
+.status-dot.idle{background:var(--dim)}
+.acct-mid{display:flex;align-items:center;gap:8px;margin-top:7px}
+.acct-mid input[type=range]{flex:1;min-width:0}
+.meter{flex:1;height:5px;border-radius:4px;background:var(--line);overflow:hidden}
+.meter > i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--ok),var(--warn));transition:width .25s}
+.acct.claude .meter > i{background:linear-gradient(90deg,var(--claude),#f0b08a)}
+.acct.gemini .meter > i{background:linear-gradient(90deg,var(--gemini),#9cc0ff)}
+.meter.high > i{background:linear-gradient(90deg,var(--warn),var(--danger))!important}
+.pct{font-family:var(--mono);font-size:10.5px;color:var(--muted);width:34px;text-align:right}
+.acct-bot{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.acct select{padding:4px 24px 4px 7px;font-size:11px;border-radius:7px;width:auto;min-width:0;flex:1}
+.acct .mini-num{width:56px;padding:4px 6px;font-size:11px;border-radius:7px;text-align:center}
+.switch{position:relative;width:30px;height:17px;flex:0 0 auto;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.switch span{position:absolute;inset:0;border-radius:999px;background:var(--line2);transition:.18s}
+.switch span:after{content:"";position:absolute;left:3px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--bg);transition:.18s}
+.switch input:checked + span{background:var(--accent)}
+.switch input:checked + span:after{transform:translateX(13px);background:#fff}
+.cool-tag{font-size:10px;font-family:var(--mono);color:var(--warn)}
+
+/* ── rotation order ──────────────────────────────────── */
+.chain{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.chain .node{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:8px;
+  background:var(--panel2);border:1px solid var(--line);font-size:11px;font-weight:600;
+}
+.chain .node.first{border-color:var(--ok);box-shadow:0 0 0 1px rgba(61,220,151,.25)}
+.chain .node.cool{opacity:.5;text-decoration:line-through}
+.chain .arrow{color:var(--dim);font-size:11px}
+.node .idx{font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+
+/* ── matrix ──────────────────────────────────────────── */
+table.matrix{width:100%;border-collapse:collapse;font-size:11px}
+table.matrix th{font-weight:700;color:var(--muted);font-size:10px;padding:0 0 5px;text-align:center}
+table.matrix th:first-child{text-align:left}
+table.matrix td{padding:3px 0;text-align:center;border-top:1px solid var(--line)}
+table.matrix td:first-child{text-align:left;font-weight:600;font-size:11px;padding-right:4px}
+table.matrix .pri{color:var(--ok);font-size:13px;line-height:1}
+table.matrix .fb{color:var(--dim);font-size:11px}
+table.matrix tr.muted td{opacity:.4}
+
+/* ── kanban ──────────────────────────────────────────── */
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+@media (max-width:1000px){ .board{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:620px){ .board{grid-template-columns:1fr} }
+.col{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:9px;min-height:130px;display:flex;flex-direction:column;gap:7px}
+.col-head{display:flex;align-items:center;gap:6px;padding:1px 3px 3px}
+.col-head .name{font-size:11.5px;font-weight:800;letter-spacing:.02em}
+.col-head .cnt{font-family:var(--mono);font-size:10px;color:var(--dim);background:var(--panel3);border-radius:6px;padding:1px 6px}
+.col-head .cbar{width:6px;height:6px;border-radius:50%}
+.col[data-col=backlog] .cbar{background:var(--dim)}
+.col[data-col=doing] .cbar{background:var(--gemini)}
+.col[data-col=review] .cbar{background:var(--warn)}
+.col[data-col=done] .cbar{background:var(--ok)}
+.col-empty{font-size:11px;color:var(--dim);text-align:center;padding:14px 4px;border:1px dashed var(--line);border-radius:9px}
+.kcard{
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2);
+  border-radius:10px;padding:9px 10px;display:flex;flex-direction:column;gap:6px;
+  box-shadow:0 1px 2px rgba(0,0,0,.18);transition:.15s;
+}
+.kcard:hover{border-color:var(--line2);transform:translateY(-1px)}
+.kcard.claude{border-left-color:var(--claude)} .kcard.gemini{border-left-color:var(--gemini)} .kcard.both{border-left-color:var(--accent)}
+.kcard .kt{font-size:12.5px;font-weight:700;line-height:1.35;word-break:break-word}
+.kcard .kp{font-size:11px;color:var(--muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;word-break:break-word}
+.kcard .kf{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.kcard .kf .spacer{margin-left:auto}
+.kcard .ops{display:flex;gap:3px;opacity:.55;transition:.15s}
+.kcard:hover .ops{opacity:1}
+.op{border:1px solid var(--line);background:var(--panel2);width:24px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;cursor:pointer;color:var(--muted);padding:0}
+.op:hover{color:var(--text);border-color:var(--line2);background:var(--panel3)}
+.op.del:hover{color:var(--danger);border-color:rgba(255,107,107,.4)}
+.prio{font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.03em}
+.prio.high{background:rgba(255,107,107,.14);color:var(--danger)}
+.prio.mid{background:rgba(245,196,81,.14);color:var(--warn)}
+.prio.low{background:var(--panel3);color:var(--dim)}
+.owner{font-size:10.5px;font-weight:700}
+
+/* ── github panel ────────────────────────────────────── */
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:9px}
+@media (max-width:760px){ .grid-3{grid-template-columns:1fr} }
+.gh-lists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+@media (max-width:900px){ .gh-lists{grid-template-columns:1fr} }
+.gh-box{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px;min-width:0}
+.gh-box h4{font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.gh-item{display:flex;align-items:center;gap:6px;padding:5px 2px;border-top:1px solid var(--line);font-size:11.5px;min-width:0}
+.gh-item:first-of-type{border-top:0}
+.gh-item a.t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.gh-item a.t:hover{color:var(--gemini)}
+.gh-item .num{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.gh-item .st{font-size:9.5px;padding:1px 5px;border-radius:4px;background:var(--panel3);color:var(--muted);white-space:nowrap}
+.gh-item .st.ok{color:var(--ok)} .gh-item .st.bad{color:var(--danger)} .gh-item .st.run{color:var(--warn)}
+.empty{font-size:11px;color:var(--dim);padding:6px 2px}
+.form-grid{display:grid;gap:8px;margin-top:10px}
+.form-grid.two{grid-template-columns:120px 1fr}
+@media (max-width:620px){ .form-grid.two{grid-template-columns:1fr} }
+.trigger-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.chip{
+  border:1px solid var(--line);background:var(--panel2);border-radius:7px;padding:3px 7px;
+  font-family:var(--mono);font-size:10.5px;cursor:pointer;color:var(--muted);
+}
+.chip:hover{color:var(--text);border-color:var(--line2)}
+.chip.claude{color:var(--claude)} .chip.gemini{color:var(--gemini)} .chip.both{color:var(--accent)}
+
+/* ── actions generator ───────────────────────────────── */
+.gen-grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1100px){ .gen-grid{grid-template-columns:1fr} }
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:8px 0 2px}
+.sum-item{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:7px 9px}
+.sum-item .k{font-size:10px;color:var(--dim);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.sum-item .v{font-size:14px;font-weight:800;font-family:var(--mono);letter-spacing:-.4px}
+.chk{display:flex;align-items:center;gap:7px;font-size:12px;padding:5px 0;cursor:pointer}
+.chk input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
+.chk code{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--panel3);padding:1px 4px;border-radius:4px}
+.code-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.code-head .fname{font-family:var(--mono);font-size:11.5px;color:var(--muted);background:var(--bg2);border:1px solid var(--line);border-radius:7px;padding:3px 8px}
+pre.yaml{
+  margin:0;background:#070a10;border:1px solid var(--line);border-radius:11px;
+  padding:12px;max-height:620px;overflow:auto;
+  font-family:var(--mono);font-size:11px;line-height:1.55;color:#c9d3e6;white-space:pre;tab-size:2;
+}
+[data-theme="light"] pre.yaml{background:#0e1520;color:#cfd8ea}
+pre.yaml .y{color:#8b8cff}
+pre.yaml .c{color:#5f6b81;font-style:italic}
+pre.yaml .s{color:#8fd1a8}
+pre.yaml .k{color:#e0a06a}
+pre.yaml .h{color:#e2e8f5;font-weight:700}
+.guide ol{margin:6px 0 0;padding-left:20px;font-size:12px;color:var(--muted);line-height:1.7}
+.guide li code{font-family:var(--mono);font-size:11px;background:var(--panel3);padding:1px 5px;border-radius:4px;color:var(--text);word-break:break-all}
+.guide .warnbox{margin-top:10px;padding:9px 11px;border-radius:9px;background:rgba(245,196,81,.08);border:1px solid rgba(245,196,81,.28);font-size:11.5px;color:var(--muted)}
+
+/* ── log ─────────────────────────────────────────────── */
+.log{max-height:170px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+.log-item{font-size:10.5px;color:var(--muted);display:flex;gap:6px;padding:2px 0;border-bottom:1px solid rgba(35,44,62,.5)}
+.log-item .t{font-family:var(--mono);color:var(--dim);flex:0 0 auto;font-size:9.5px;padding-top:1px}
+.log-item .m{min-width:0;word-break:break-word}
+
+/* ── modal / toast ───────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(3,6,12,.66);backdrop-filter:blur(3px);z-index:80;display:none;align-items:center;justify-content:center;padding:16px}
+.overlay.on{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:18px;width:min(560px,100%);max-height:90vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.modal h3{font-size:15px;font-weight:800;margin-bottom:12px}
+.modal .fld{margin-bottom:10px}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:120;display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none}
+.toast{
+  background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 15px;
+  font-size:12.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.45);
+  animation:toastIn .18s ease-out;max-width:90vw;
+}
+.toast.ok{border-color:rgba(61,220,151,.5)} .toast.err{border-color:rgba(255,107,107,.55)} .toast.info{border-color:var(--line2)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.help-q{font-size:11.5px;color:var(--dim);margin-top:3px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">◈</div>
+    <div>
+      <h1>AI 협업 콘솔</h1>
+      <p>GitHub × Claude × Gemini</p>
+    </div>
+  </div>
+
+  <div class="topbar-mid">
+    <div class="seg" id="modeSeg">
+      <button data-mode="dashboard">🖥 대시보드 모드</button>
+      <button data-mode="actions">⚙️ GitHub Actions 모드</button>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <span class="save-state" id="saveState"><span class="dot"></span><span id="saveText">자동 저장</span></span>
+    <button class="btn ghost icon" id="exportBtn" title="설정 JSON 내보내기">⬇</button>
+    <button class="btn ghost icon" id="importBtn" title="설정 JSON 불러오기">⬆</button>
+    <input type="file" id="importFile" accept="application/json,.json" hidden />
+    <button class="btn ghost icon" id="themeBtn" title="다크/라이트 전환">🌙</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+    <div class="card" style="padding:13px">
+      <div class="card-head" style="margin-bottom:8px">
+        <h2>계정 풀</h2>
+        <span class="spacer"></span>
+        <span class="pill" id="acctSummary">C– · G–</span>
+      </div>
+      <div class="seg full sm" id="strategySeg">
+        <button data-strategy="rotate">한도 로테이션</button>
+        <button data-strategy="role">역할 분담</button>
+        <button data-strategy="hybrid">하이브리드</button>
+      </div>
+      <p class="hint" id="strategyHint" style="margin-top:8px"></p>
+
+      <div class="acct-group claude" id="claudeGroup"></div>
+      <div class="acct-group gemini" id="geminiGroup"></div>
+    </div>
+
+    <div class="card" id="orderCard" style="padding:13px">
+      <div class="card-head" style="margin-bottom:8px">
+        <h2 id="orderTitle">자동 폴백 순서</h2>
+        <span class="spacer"></span>
+        <button class="btn sm" id="handoffBtn">다음 계정으로 전환</button>
+      </div>
+      <div id="chainBox"></div>
+      <p class="hint" id="orderHint" style="margin-top:8px"></p>
+    </div>
+
+    <div class="card" id="matrixCard" style="padding:13px;display:none">
+      <div class="card-head" style="margin-bottom:8px">
+        <h2>동시 협업 매트릭스</h2>
+        <span class="spacer"></span>
+        <span class="pill" id="matrixPill">역할 6</span>
+      </div>
+      <div id="matrixBox"></div>
+      <p class="hint" style="margin-top:8px">★ 주 담당 · ○ 한도 시 인계 · 카드에서 계정별 역할을 바꿀 수 있어요.</p>
+    </div>
+
+    <div class="card" style="padding:13px">
+      <div class="card-head" style="margin-bottom:6px">
+        <h2>활동 로그</h2>
+        <span class="spacer"></span>
+        <button class="btn sm ghost" id="clearLogBtn">비우기</button>
+      </div>
+      <div class="log" id="logBox"></div>
+    </div>
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <main style="min-width:0">
+    <!-- ─── 대시보드 모드 ─── -->
+    <section class="pane on" id="pane-dashboard">
+      <div class="card">
+        <div class="card-head">
+          <h2>GitHub 저장소 연동</h2>
+          <span class="pill" id="repoState">미연결</span>
+          <span class="spacer"></span>
+          <button class="btn sm" id="repoLoadBtn">조회</button>
+          <button class="btn sm primary" id="repoTestBtn">연결 테스트</button>
+        </div>
+        <div class="grid-3">
+          <label class="fld">Owner<input type="text" id="repoOwner" placeholder="everywon1202-collab" autocomplete="off" spellcheck="false" /></label>
+          <label class="fld">Repo<input type="text" id="repoName" placeholder="event-dashboard" autocomplete="off" spellcheck="false" /></label>
+          <label class="fld">GitHub PAT (선택)
+            <input type="password" id="repoPat" placeholder="github_pat_... (이 브라우저에만 저장)" autocomplete="off" spellcheck="false" />
+          </label>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn sm ghost" id="patSaveBtn">PAT 저장</button>
+          <button class="btn sm ghost" id="patClearBtn">PAT 삭제</button>
+          <span class="hint" style="align-self:center">공개 저장소는 PAT 없이 읽기만 됩니다. 쓰기(이슈·코멘트)에는 Issues 쓰기 권한 PAT가 필요합니다.</span>
+        </div>
+
+        <div class="gh-lists">
+          <div class="gh-box">
+            <h4>열린 이슈 <span id="issueCount" class="num"></span></h4>
+            <div id="ghIssues"><div class="empty">조회 전</div></div>
+          </div>
+          <div class="gh-box">
+            <h4>열린 PR <span id="prCount" class="num"></span></h4>
+            <div id="ghPrs"><div class="empty">조회 전</div></div>
+          </div>
+          <div class="gh-box">
+            <h4>Actions 최근 실행 <span id="runCount" class="num"></span></h4>
+            <div id="ghRuns"><div class="empty">조회 전</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>이슈 열기 · 트리거 코멘트</h2>
+          <span class="spacer"></span>
+          <div class="seg sm" id="ghTabSeg">
+            <button data-gtab="issue" class="on">새 이슈</button>
+            <button data-gtab="comment">코멘트</button>
+          </div>
+        </div>
+
+        <div id="ghFormIssue">
+          <label class="fld" style="margin-bottom:7px">제목
+            <input type="text" id="issueTitle" placeholder="예: 로그인 폼 접근성 개선" />
+          </label>
+          <label class="fld">본문
+            <textarea id="issueBody" placeholder="@claude 로그인 폼의 접근성 문제를 검토하고 수정 계획을 제안해 주세요."></textarea>
+          </label>
+          <div class="trigger-chips">
+            <span class="hint" style="align-self:center">멘션 삽입:</span>
+            <button class="chip claude" data-insert="@claude ">@claude</button>
+            <button class="chip gemini" data-insert="@gemini ">@gemini</button>
+            <button class="chip both" data-insert="@collab ">@collab</button>
+            <span class="spacer" style="margin-left:auto"></span>
+            <button class="btn sm primary" id="issueCreateBtn">이슈 생성</button>
+          </div>
+          <p class="hint" style="margin-top:6px">워크플로가 설치된 저장소라면 이슈 본문의 멘션만으로 AI가 바로 응답합니다.</p>
+        </div>
+
+        <div id="ghFormComment" style="display:none">
+          <div class="form-grid two">
+            <label class="fld">번호 (이슈/PR)
+              <input type="number" id="cmtNumber" placeholder="12" min="1" />
+            </label>
+            <label class="fld">내용
+              <textarea id="cmtBody" placeholder="@collab 이 PR의 엣지케이스를 점검하고 테스트 초안을 작성해 주세요." style="min-height:64px"></textarea>
+            </label>
+          </div>
+          <div class="trigger-chips">
+            <span class="hint" style="align-self:center">멘션 삽입:</span>
+            <button class="chip claude" data-insert-cmt="@claude ">@claude</button>
+            <button class="chip gemini" data-insert-cmt="@gemini ">@gemini</button>
+            <button class="chip both" data-insert-cmt="@collab ">@collab</button>
+            <span class="spacer" style="margin-left:auto"></span>
+            <button class="btn sm primary" id="cmtSendBtn">코멘트 등록</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>작업 파이프라인 보드</h2>
+          <span class="pill" id="boardCount">0</span>
+          <span class="spacer"></span>
+          <button class="btn sm ghost" id="demoFillBtn" title="예시 카드 3장 채우기">예시 채우기</button>
+          <button class="btn sm primary" id="addCardBtn">＋ 작업 추가</button>
+        </div>
+        <div class="board" id="board"></div>
+        <p class="hint" style="margin-top:9px">카드의 <b>⇄</b>로 상태를 옮기고, <b>⧉</b>는 프롬프트 복사, <b>⌘</b>는 로컬 CLI 명령 복사, <b>↗</b>는 핸드오프 컨텍스트 복사입니다. 모든 변경은 이 브라우저에 자동 저장됩니다.</p>
+      </div>
+    </section>
+
+    <!-- ─── GitHub Actions 모드 ─── -->
+    <section class="pane" id="pane-actions">
+      <div class="gen-grid">
+        <div class="card">
+          <div class="card-head"><h2>워크플로 설정</h2><span class="spacer"></span><span class="pill" id="yamlState">실시간</span></div>
+
+          <div class="summary-grid">
+            <div class="sum-item"><div class="k">Claude 계정</div><div class="v" id="sumClaude">0</div></div>
+            <div class="sum-item"><div class="k">Gemini 계정</div><div class="v" id="sumGemini">0</div></div>
+            <div class="sum-item"><div class="k">전략</div><div class="v" id="sumStrategy" style="font-size:12px">로테이션</div></div>
+            <div class="sum-item"><div class="k">Job 수</div><div class="v" id="sumJobs">1</div></div>
+          </div>
+
+          <p class="hint" style="margin:6px 0 10px">계정 수는 왼쪽 계정 토글에서 바뀝니다. 전략에 따라 Job 구성이 자동으로 달라져요.</p>
+
+          <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin-bottom:2px">트리거</div>
+          <label class="chk"><input type="checkbox" data-trigger="claude" /> 이슈·PR 코멘트 <code>@claude</code></label>
+          <label class="chk"><input type="checkbox" data-trigger="gemini" /> 이슈·PR 코멘트 <code>@gemini</code></label>
+          <label class="chk"><input type="checkbox" data-trigger="collab" /> 이슈·PR 코멘트 <code>@collab</code> (둘 다)</label>
+          <label class="chk"><input type="checkbox" data-trigger="label" /> 라벨 부착</label>
+          <div style="display:flex;gap:6px;align-items:center;margin:2px 0 4px 22px">
+            <input type="text" id="labelName" placeholder="ai-collab" style="max-width:160px;padding:4px 8px;font-size:11.5px" />
+            <span class="hint">라벨 이름</span>
+          </div>
+          <label class="chk"><input type="checkbox" data-trigger="dispatch" /> 수동 실행 <code>workflow_dispatch</code></label>
+
+          <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin:12px 0 4px">모델</div>
+          <div class="grid-3" style="grid-template-columns:1fr 1fr">
+            <label class="fld">Claude<input type="text" id="modelClaude" spellcheck="false" class="mono" style="font-size:12px" /></label>
+            <label class="fld">Gemini<input type="text" id="modelGemini" spellcheck="false" class="mono" style="font-size:12px" /></label>
+          </div>
+
+          <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin:12px 0 4px">실행 한도</div>
+          <label class="fld">Job 타임아웃 (분)
+            <input type="number" id="timeoutMin" min="5" max="120" step="5" />
+          </label>
+
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn primary" id="copyYamlBtn">YAML 복사</button>
+            <button class="btn" id="dlYamlBtn">.yml 다운로드</button>
+            <button class="btn ghost sm" id="resetGenBtn">전체 초기화</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:13px">
+          <div class="code-head">
+            <span class="fname">.github/workflows/ai-collab.yml</span>
+            <span class="pill ok" id="yamlBadge">생성 완료</span>
+            <span class="spacer" style="margin-left:auto"></span>
+            <span class="hint" id="yamlLines">0줄</span>
+          </div>
+          <pre class="yaml" id="yamlOut"></pre>
+        </div>
+      </div>
+
+      <div class="card guide">
+        <div class="card-head">
+          <h2>GitHub Secrets 등록 가이드</h2>
+          <span class="spacer"></span>
+          <button class="btn sm ghost" id="copyGuideBtn">가이드 복사</button>
+        </div>
+        <ol id="guideList"></ol>
+        <div class="warnbox">
+          ⚠️ API 키는 절대 이 HTML이나 저장소 코드에 넣지 마세요. 이 페이지는 키를 저장하지 않으며, 키는 GitHub 저장소의 <b>Secrets</b>에만 둡니다. 워크플로는 저장소를 <b>읽기 전용</b>으로 다루고, 결과는 코멘트로만 남깁니다.
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ═══════════ 모달 ═══════════ -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <h3 id="modalTitle">작업 추가</h3>
+    <label class="fld">제목<input type="text" id="mTitle" placeholder="예: 결제 모듈 에러 핸들링 정리" /></label>
+    <label class="fld">프롬프트 / 요구사항<textarea id="mPrompt" placeholder="무엇을 어떤 기준으로 처리할지 적어 주세요. 파일 경로·완료 조건을 포함하면 좋습니다."></textarea></label>
+    <div class="grid-3" style="grid-template-columns:1fr 1fr 1fr">
+      <label class="fld">담당 AI
+        <select id="mOwner"></select>
+      </label>
+      <label class="fld">우선순위
+        <select id="mPrio">
+          <option value="high">높음</option>
+          <option value="mid" selected>보통</option>
+          <option value="low">낮음</option>
+        </select>
+      </label>
+      <label class="fld">단계
+        <select id="mCol">
+          <option value="backlog">대기</option>
+          <option value="doing">진행 중</option>
+          <option value="review">리뷰·핸드오프</option>
+          <option value="done">완료</option>
+        </select>
+      </label>
+    </div>
+    <p class="help-q" id="mHint"></p>
+    <div class="modal-foot">
+      <button class="btn ghost" id="mCancel">취소</button>
+      <button class="btn primary" id="mSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+<script>
+(function(){
+"use strict";
+/* ══════════════════════════════════════════════════════════
+   AI 협업 콘솔 — 상태 · 계정 풀 · 로테이션/역할 · 저장
+   ══════════════════════════════════════════════════════════ */
+const LS_KEY = "ai-collab-console.v1";
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const pad2 = n => String(n).padStart(2, "0");
+const nowHM = () => { const d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
+const nowStamp = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
+
+const ROLES = [
+  {id:"architect", name:"아키텍트·설계"},
+  {id:"implement", name:"핵심 구현"},
+  {id:"review",    name:"코드 리뷰"},
+  {id:"analyze",   name:"대용량 문서·레포 분석"},
+  {id:"test",      name:"테스트 작성"},
+  {id:"security",  name:"보안·엣지케이스 점검"}
+];
+const ROLE_NAME = Object.fromEntries(ROLES.map(r => [r.id, r.name]));
+const COLS = [
+  {id:"backlog", name:"대기"},
+  {id:"doing",   name:"진행 중"},
+  {id:"review",  name:"리뷰·핸드오프"},
+  {id:"done",    name:"완료"}
+];
+const STATUS_LABEL = {active:"활성", cool:"한도·쿨다운", idle:"대기"};
+const STRATEGY_NAME = {rotate:"한도 로테이션", role:"역할 분담", hybrid:"하이브리드"};
+
+function defaultState(){
+  const acct = (fam, n, on, usage) => ({
+    id: fam[0] + n, label: (fam === "claude" ? "Claude #" : "Gemini #") + n,
+    enabled: on, status: on ? "active" : "idle", usage: on ? usage : 0, cooldownUntil: 0
+  });
+  return {
+    v: 1,
+    mode: "dashboard",
+    theme: "dark",
+    strategy: "rotate",
+    repo: {owner:"everywon1202-collab", name:"event-dashboard", pat:"", branch:"main"},
+    accounts: {
+      claude: [acct("claude",1,true,40), acct("claude",2,true,15), acct("claude",3,false,0)],
+      gemini: [acct("gemini",1,true,25), acct("gemini",2,true,55), acct("gemini",3,true,5), acct("gemini",4,false,0)]
+    },
+    roles: {architect:"c1", implement:"c2", review:"c3", analyze:"g1", test:"g2", security:"g3"},
+    board: [
+      {id:uid(), title:"결제 모듈 에러 핸들링 정리", prompt:"src/pay/*.ts 에서 throw 된 예외를 사용자 메시지로 매핑해 주세요.\n완료 조건: 실패 케이스 3개 이상 재현 테스트 포함.", owner:"c2", prio:"high", col:"doing", createdAt:Date.now()},
+      {id:uid(), title:"로그인 폼 접근성 패치 검토", prompt:"label·aria 속성 누락을 찾아 패치안을 제시하고, 키보드 탭 순서를 점검해 주세요.", owner:"g1", prio:"mid", col:"review", createdAt:Date.now()},
+      {id:uid(), title:"README 실행 방법 재작성", prompt:"현재 스크립트 기준으로 설치·실행·환경변수 절차를 한국어로 다시 써 주세요.", owner:"both", prio:"low", col:"backlog", createdAt:Date.now()}
+    ],
+    triggers: {claude:true, gemini:true, collab:true, label:true, labelName:"ai-collab", dispatch:true},
+    models: {claude:"claude-sonnet-4-5", gemini:"gemini-2.5-pro"},
+    timeout:30,
+    log: []
+  };
+}
+
+let state = defaultState();
+
+function mergeState(saved){
+  if (!saved || typeof saved !== "object") return;
+  const base = defaultState();
+  state = Object.assign(base, saved);
+  state.repo = Object.assign(base.repo, saved.repo || {});
+  state.triggers = Object.assign(base.triggers, saved.triggers || {});
+  state.models = Object.assign(base.models, saved.models || {});
+  state.roles = Object.assign(base.roles, saved.roles || {});
+  ["claude","gemini"].forEach(fam => {
+    const src = (saved.accounts && saved.accounts[fam]) || [];
+    state.accounts[fam] = base.accounts[fam].map(def => {
+      const s = src.find(a => a && a.id === def.id) || {};
+      return Object.assign({}, def, s);
+    });
+  });
+  if (!Array.isArray(state.board)) state.board = base.board;
+  if (!Array.isArray(state.log)) state.log = [];
+}
+
+/* ── 저장 ─────────────────────────────────────────────── */
+let saveTimer = null, dirty = false;
+function save(){
+  dirty = true;
+  const box = $("#saveState"), txt = $("#saveText");
+  if (box) { box.classList.add("saving"); txt.textContent = "저장 중…"; }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+    catch(e){ toast("저장 실패: 브라우저 저장 공간을 확인해 주세요", "err"); }
+    dirty = false;
+    if (box) { box.classList.remove("saving"); txt.textContent = "저장됨 " + nowHM(); }
+  }, 220);
+}
+
+/* ── 토스트 ───────────────────────────────────────────── */
+function toast(msg, kind){
+  const wrap = $("#toasts");
+  if (!wrap) return;
+  const el = document.createElement("div");
+  el.className = "toast " + (kind || "info");
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .25s"; }, 2400);
+  setTimeout(() => el.remove(), 2750);
+}
+
+async function copyText(text, okMsg){
+  try {
+    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+    else {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.left = "-9999px";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    }
+    toast(okMsg || "복사했어요", "ok");
+  } catch(e){ toast("복사 실패 — 직접 선택해 주세요", "err"); }
+}
+
+/* ── 활동 로그 ────────────────────────────────────────── */
+function logMsg(msg){
+  state.log.unshift({t: Date.now(), m: msg});
+  state.log = state.log.slice(0, 80);
+  renderLog();
+}
+function renderLog(){
+  const box = $("#logBox");
+  if (!box) return;
+  if (!state.log.length){ box.innerHTML = '<div class="empty">아직 기록이 없습니다</div>'; return; }
+  box.innerHTML = state.log.slice(0, 40).map(l => {
+    const d = new Date(l.t);
+    return '<div class="log-item"><span class="t">' + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + '</span><span class="m">' + esc(l.m) + "</span></div>";
+  }).join("");
+}
+
+/* ── 계정 계산 ────────────────────────────────────────── */
+function familyOf(id){ return id && id[0] === "c" ? "claude" : "gemini"; }
+function acctById(id){
+  for (const fam of ["claude","gemini"]) {
+    const a = state.accounts[fam].find(x => x.id === id);
+    if (a) return a;
+  }
+  return null;
+}
+function famOrder(fam){
+  const arr = state.accounts[fam].filter(a => a.enabled);
+  const rank = a => a.status === "active" ? 0 : a.status === "idle" ? 1 : 2;
+  return arr.slice().sort((x, y) => {
+    const r = rank(x) - rank(y);
+    if (r) return r;
+    if (x.status === "cool" && y.status === "cool") return (x.cooldownUntil||0) - (y.cooldownUntil||0);
+    return x.usage - y.usage;
+  });
+}
+function secretPlan(){
+  const plan = {claude:{}, gemini:{}};
+  ["claude","gemini"].forEach(fam => {
+    state.accounts[fam].filter(a => a.enabled).forEach((a, i) => { plan[fam][a.id] = i + 1; });
+  });
+  return plan;
+}
+function secretNameOf(a){
+  const p = secretPlan();
+  const n = p[familyOf(a.id)][a.id];
+  if (!n) return "꺼짐";
+  return (a.id[0] === "c" ? "ANTHROPIC_API_KEY_" : "GEMINI_API_KEY_") + n;
+}
+function shortLabel(a){ return (a.id[0] === "c" ? "C#" : "G#") + (secretPlan()[familyOf(a.id)][a.id] || "–"); }
+function primaryFor(roleId){
+  const id = state.roles[roleId];
+  const a = id ? acctById(id) : null;
+  return a && a.enabled ? a : null;
+}
+function mmss(ms){
+  const s = Math.max(0, Math.round(ms / 1000));
+  return pad2(Math.floor(s / 60)) + ":" + pad2(s % 60);
+}
+function coolLeft(a){ return a.status === "cool" && a.cooldownUntil ? a.cooldownUntil - Date.now() : 0; }
+
+/* ── 계정 카드 렌더 ───────────────────────────────────── */
+function acctCard(a){
+  const fam = familyOf(a.id);
+  const plan = secretPlan();
+  const badge = a.enabled ? (fam === "claude" ? "ANTHROPIC_API_KEY_" : "GEMINI_API_KEY_") + plan[fam][a.id] : "꺼짐";
+  const dot = a.enabled ? (a.status === "active" ? "active" : a.status === "cool" ? "cool" : "idle") : "idle";
+  const high = a.usage >= 85 ? " high" : "";
+  const roleOpts = ['<option value="">— 역할 없음 —</option>'].concat(
+    ROLES.map(r => '<option value="' + r.id + '"' + (state.roles[r.id] === a.id ? " selected" : "") + ">" + esc(r.name) + "</option>")
+  ).join("");
+  const left = coolLeft(a);
+  return '<div class="acct ' + fam + (a.enabled ? "" : " off") + '" data-id="' + a.id + '">' +
+    '<div class="acct-top">' +
+      '<label class="switch"><input type="checkbox" data-act="toggle"' + (a.enabled ? " checked" : "") + ' /><span></span></label>' +
+      '<span class="status-dot ' + dot + '"></span>' +
+      '<span class="acct-name">' + esc(a.label) + '</span>' +
+      '<span class="secret" title="GitHub Secret 이름">' + badge + '</span>' +
+    '</div>' +
+    '<div class="acct-mid">' +
+      '<input type="range" min="0" max="100" step="5" value="' + a.usage + '" data-act="usage" ' + (a.enabled ? "" : "disabled") + ' />' +
+      '<span class="pct" data-pct>' + a.usage + '%</span>' +
+    '</div>' +
+    '<div class="acct-bot">' +
+      '<select data-act="status"' + (a.enabled ? "" : " disabled") + '>' +
+        Object.keys(STATUS_LABEL).map(k => '<option value="' + k + '"' + (a.status === k ? " selected" : "") + ">" + STATUS_LABEL[k] + "</option>").join("") +
+      '</select>' +
+      '<input class="mini-num" type="number" min="1" max="1440" value="60" data-act="coolmin" title="쿨다운(분)" />' +
+      '<button class="btn sm ghost" data-act="cool"' + (a.enabled ? "" : " disabled") + '>쿨다운</button>' +
+      (left > 0 ? '<span class="cool-tag" data-cool="' + a.id + '">⏳ ' + mmss(left) + "</span>" : "") +
+    '</div>' +
+    (state.strategy !== "rotate" ?
+      '<div class="acct-bot"><select data-act="role"' + (a.enabled ? "" : " disabled") + '>' + roleOpts + "</select></div>" : "") +
+  "</div>";
+}
+function renderAccounts(){
+  $("#claudeGroup").innerHTML = '<div class="grp-title"><span class="bar"></span>Claude · 1~3</div>' +
+    state.accounts.claude.map(acctCard).join("");
+  $("#geminiGroup").innerHTML = '<div class="grp-title"><span class="bar"></span>Gemini · 1~4</div>' +
+    state.accounts.gemini.map(acctCard).join("");
+  const c = state.accounts.claude.filter(a => a.enabled).length;
+  const g = state.accounts.gemini.filter(a => a.enabled).length;
+  $("#acctSummary").textContent = "C" + c + " · G" + g;
+  $("#acctSummary").className = "pill " + (c + g ? "ok" : "bad");
+}
+function refreshCoolTags(){
+  let expired = false;
+  $$("[data-cool]").forEach(el => {
+    const a = acctById(el.getAttribute("data-cool"));
+    if (!a) return;
+    const left = coolLeft(a);
+    if (left <= 0) expired = true;
+    else el.textContent = "⏳ " + mmss(left);
+  });
+  return expired;
+}
+
+/* ── 폴백 순서 + 매트릭스 ─────────────────────────────── */
+function renderOrder(){
+  const box = $("#chainBox");
+  const rows = [];
+  ["claude","gemini"].forEach(fam => {
+    const list = famOrder(fam);
+    if (!list.length) return;
+    const nodes = list.map((a, i) => {
+      const cls = "node" + (i === 0 && a.status === "active" ? " first" : "") + (a.status === "cool" ? " cool" : "");
+      const left = coolLeft(a);
+      return '<span class="' + cls + '" title="' + esc(a.label) + ' 사용량 ' + a.usage + '%">' + shortLabel(a) +
+        ' <span class="idx">' + (a.status === "cool" && left > 0 ? mmss(left) : a.usage + "%") + "</span></span>";
+    }).join('<span class="arrow">→</span>');
+    rows.push('<div class="chain" style="margin-bottom:5px"><span class="pill ' + fam + '" style="flex:0 0 auto">' +
+      (fam === "claude" ? "Claude" : "Gemini") + "</span>" + nodes + "</div>");
+  });
+  box.innerHTML = rows.join("") || '<div class="empty">켜진 계정이 없습니다. 위에서 계정을 활성화해 주세요.</div>';
+  const hints = {
+    rotate: "사용량이 낮고 활성인 계정이 앞에 옵니다. 한도(429)에 닿으면 다음 계정으로 자동 폴백됩니다.",
+    role: "역할마다 주 담당이 고정됩니다. 한도 초과 시에는 같은 진영의 다음 계정이 인계받습니다.",
+    hybrid: "역할 주 담당 → 같은 진영 다음 계정 순으로 인계합니다. (역할 분담 + 한도 로테이션)"
+  };
+  $("#orderHint").textContent = hints[state.strategy];
+  $("#orderTitle").textContent = state.strategy === "rotate" ? "자동 폴백 순서" : "자동 인계 순서";
+}
+
+function renderMatrix(){
+  const card = $("#matrixCard");
+  if (state.strategy === "rotate"){ card.style.display = "none"; return; }
+  card.style.display = "";
+  const cols = [
+    ...state.accounts.claude.filter(a => a.enabled),
+    ...state.accounts.gemini.filter(a => a.enabled)
+  ];
+  if (!cols.length){ $("#matrixBox").innerHTML = '<div class="empty">켜진 계정이 없습니다</div>'; return; }
+  const head = "<tr><th>역할</th>" + cols.map(a => "<th>" + shortLabel(a) + "</th>").join("") + "</tr>";
+  const body = ROLES.map(r => {
+    const p = primaryFor(r.id);
+    const fam = p ? familyOf(p.id) : null;
+    const cells = cols.map(a => {
+      if (p && a.id === p.id) return '<td class="pri" title="주 담당">★</td>';
+      if (p && fam === familyOf(a.id)) return '<td class="fb" title="한도 시 인계">○</td>';
+      return "<td></td>";
+    }).join("");
+    return '<tr' + (p ? "" : ' class="muted"') + "><td>" + esc(r.name) + "</td>" + cells + "</tr>";
+  }).join("");
+  $("#matrixBox").innerHTML = '<table class="matrix"><thead>' + head + "</thead><tbody>" + body + "</tbody></table>";
+  const filled = ROLES.filter(r => primaryFor(r.id)).length;
+  $("#matrixPill").textContent = "역할 " + filled + "/" + ROLES.length;
+  $("#matrixPill").className = "pill " + (filled === ROLES.length ? "ok" : "warn");
+}
+
+/* ── 계정 이벤트 ──────────────────────────────────────── */
+function bindAccountGroup(sel){
+  const box = $(sel);
+  box.addEventListener("input", e => {
+    const card = e.target.closest(".acct"); if (!card) return;
+    const a = acctById(card.getAttribute("data-id")); if (!a) return;
+    const act = e.target.getAttribute("data-act");
+    if (act === "usage"){
+      a.usage = Number(e.target.value);
+      const pct = card.querySelector("[data-pct]");
+      if (pct) pct.textContent = a.usage + "%";
+      if (a.usage >= 100 && a.status === "active"){
+        a.status = "cool";
+        a.cooldownUntil = Date.now() + 30 * 60000;
+        logMsg(a.label + " 사용량 100% → 쿨다운 30분 자동 설정");
+        renderAccounts(); renderOrder(); renderMatrix();
+      }
+      renderOrder(); save();
+    }
+  });
+  box.addEventListener("change", e => {
+    const card = e.target.closest(".acct"); if (!card) return;
+    const a = acctById(card.getAttribute("data-id")); if (!a) return;
+    const act = e.target.getAttribute("data-act");
+    if (act === "toggle"){
+      a.enabled = e.target.checked;
+      if (!a.enabled){ a.status = "idle"; a.cooldownUntil = 0; }
+      else if (a.status === "idle") a.status = "active";
+      logMsg(a.label + (a.enabled ? " 활성화" : " 비활성화"));
+      renderAllAccounts(); save();
+    } else if (act === "status"){
+      a.status = e.target.value;
+      if (a.status !== "cool") a.cooldownUntil = 0;
+      else if (!a.cooldownUntil) a.cooldownUntil = Date.now() + 60 * 60000;
+      logMsg(a.label + " 상태 → " + STATUS_LABEL[a.status]);
+      renderAllAccounts(); save();
+    } else if (act === "role"){
+      const rid = e.target.value;
+      ROLES.forEach(r => { if (state.roles[r.id] === a.id) delete state.roles[r.id]; });
+      if (rid) state.roles[rid] = a.id;
+      logMsg(a.label + (rid ? " 역할 → " + ROLE_NAME[rid] : " 역할 해제"));
+      renderAllAccounts(); save();
+    }
+  });
+  box.addEventListener("click", e => {
+    const btn = e.target.closest('[data-act="cool"]'); if (!btn) return;
+    const card = e.target.closest(".acct"); if (!card) return;
+    const a = acctById(card.getAttribute("data-id")); if (!a || !a.enabled) return;
+    const minEl = card.querySelector('[data-act="coolmin"]');
+    const min = Math.min(1440, Math.max(1, Number(minEl && minEl.value) || 60));
+    a.status = "cool"; a.cooldownUntil = Date.now() + min * 60000; a.usage = 100;
+    logMsg(a.label + " 쿨다운 " + min + "분 시작");
+    renderAllAccounts(); save();
+    toast(a.label + "을(를) " + min + "분 쿨다운으로 돌렸어요", "info");
+  });
+}
+function renderAllAccounts(){ renderAccounts(); renderOrder(); renderMatrix(); renderStrategyHint(); renderGenSummary(); buildYaml(); }
+
+function renderStrategyHint(){
+  const hints = {
+    rotate: "계정을 하나의 연료 탱크처럼 씁니다. 사용량이 적은 계정부터 쓰고, 429가 나면 다음 키로 넘어갑니다.",
+    role: "역할마다 담당 계정을 고정합니다. 설계·구현·리뷰가 동시에 붙어 병렬로 진행됩니다.",
+    hybrid: "역할 주 담당이 한도에 닿으면 같은 진영의 다음 계정이 이어받습니다. 기본 추천 모드예요."
+  };
+  $("#strategyHint").textContent = hints[state.strategy];
+  $$("#strategySeg button").forEach(b => b.classList.toggle("on", b.getAttribute("data-strategy") === state.strategy));
+}
+
+/* ── 작업 보드 ────────────────────────────────────────── */
+function ownerInfo(owner){
+  if (owner === "both") return {name:"공동", cls:"both", fam:""};
+  const a = acctById(owner);
+  if (!a) return {name:"미배정", cls:"", fam:""};
+  return {name: a.label, cls: familyOf(a.id), fam: familyOf(a.id)};
+}
+function ownerOptions(sel){
+  const opts = ['<option value="">미배정</option>', '<option value="both"' + (sel === "both" ? " selected" : "") + ">공동 (둘 다)</option>"];
+  ["claude","gemini"].forEach(fam => {
+    state.accounts[fam].forEach(a => {
+      opts.push('<option value="' + a.id + '"' + (sel === a.id ? " selected" : "") + ">" + esc(a.label) + (a.enabled ? "" : " (꺼짐)") + "</option>");
+    });
+  });
+  return opts.join("");
+}
+function shellQuote(s){ return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
+function cliFor(c){
+  const prompt = (c.prompt || c.title || "").trim();
+  const fams = c.owner === "both" ? ["claude","gemini"] : [(c.owner && acctById(c.owner)) ? familyOf(c.owner) : "claude"];
+  const out = [];
+  fams.forEach(fam => {
+    const a = (c.owner && c.owner !== "both") ? acctById(c.owner) : famOrder(fam)[0];
+    if (!a){ out.push("# " + (fam === "claude" ? "Claude" : "Gemini") + " — 켜진 계정 없음"); return; }
+    const plan = secretPlan();
+    const ord = plan[fam][a.id];
+    const keyName = (fam === "claude" ? "ANTHROPIC_API_KEY_" : "GEMINI_API_KEY_") + ord;
+    out.push("# " + a.label + " · " + (fam === "claude" ? "Claude Code" : "Gemini CLI") + " · 키 " + keyName);
+    out.push(fam === "claude" ? "claude -p " + shellQuote(prompt) : "gemini -p " + shellQuote(prompt));
+    out.push("");
+  });
+  return out.join("\n").trim();
+}
+function handoffFor(c){
+  const col = (COLS.find(x => x.id === c.col) || {}).name || c.col;
+  const pr = {high:"높음", mid:"보통", low:"낮음"}[c.prio] || "보통";
+  const o = ownerInfo(c.owner);
+  return [
+    "## 작업: " + c.title,
+    "",
+    "- 담당: " + o.name,
+    "- 단계: " + col,
+    "- 우선순위: " + pr,
+    "- 생성: " + new Date(c.createdAt || Date.now()).toLocaleString("ko-KR"),
+    "",
+    "### 요구사항",
+    c.prompt || "(프롬프트 없음)",
+    "",
+    "### 핸드오프 체크리스트",
+    "- [ ] 관련 파일:",
+    "- [ ] 완료한 내용:",
+    "- [ ] 남은 작업 / 다음 담당자에게:",
+    "- [ ] 검증 방법(테스트·재현 절차):",
+    "",
+    "### 응답 형식",
+    "1) 결론 2) 변경/지시 사항(파일 경로 포함) 3) 위험·확인 필요 4) 다음 담당"
+  ].join("\n");
+}
+function cardHTML(c){
+  const o = ownerInfo(c.owner);
+  const idx = COLS.findIndex(x => x.id === c.col);
+  const prioCls = c.prio === "high" ? "high" : c.prio === "low" ? "low" : "mid";
+  const prioTxt = c.prio === "high" ? "높음" : c.prio === "low" ? "낮음" : "보통";
+  return '<div class="kcard ' + o.cls + '" data-card="' + c.id + '">' +
+    '<div class="kt">' + esc(c.title || "(제목 없음)") + "</div>" +
+    (c.prompt ? '<div class="kp">' + esc(c.prompt) + "</div>" : "") +
+    '<div class="kf">' +
+      '<span class="owner" style="color:' + (o.fam === "claude" ? "var(--claude)" : o.fam === "gemini" ? "var(--gemini)" : "var(--accent)") + '">● ' + esc(o.name) + "</span>" +
+      '<span class="prio ' + prioCls + '">' + prioTxt + "</span>" +
+      '<span class="spacer"></span>' +
+      '<div class="ops">' +
+        (idx > 0 ? '<button class="op" data-op="prev" title="이전 단계로">←</button>' : "") +
+        (idx < COLS.length - 1 ? '<button class="op" data-op="next" title="다음 단계로">→</button>' : "") +
+        '<button class="op" data-op="prompt" title="프롬프트 복사">⧉</button>' +
+        '<button class="op" data-op="cli" title="로컬 CLI 명령 복사">⌘</button>' +
+        '<button class="op" data-op="ctx" title="핸드오프 컨텍스트 복사">↗</button>' +
+        '<button class="op" data-op="edit" title="편집">✎</button>' +
+        '<button class="op del" data-op="del" title="삭제">✕</button>' +
+      "</div>" +
+    "</div>" +
+  "</div>";
+}
+function renderBoard(){
+  const board = $("#board");
+  board.innerHTML = COLS.map(col => {
+    const items = state.board.filter(c => c.col === col.id);
+    return '<div class="col" data-col="' + col.id + '">' +
+      '<div class="col-head"><span class="cbar"></span><span class="name">' + col.name + '</span><span class="cnt">' + items.length + "</span></div>" +
+      (items.length ? items.map(cardHTML).join("") : '<div class="col-empty">비어 있음</div>') +
+    "</div>";
+  }).join("");
+  $("#boardCount").textContent = state.board.length + "장";
+}
+
+function bindBoard(){
+  $("#board").addEventListener("click", e => {
+    const btn = e.target.closest("[data-op]");
+    if (!btn) return;
+    const cardEl = btn.closest("[data-card]");
+    const id = cardEl && cardEl.getAttribute("data-card");
+    const c = state.board.find(x => x.id === id);
+    if (!c) return;
+    const op = btn.getAttribute("data-op");
+    if (op === "prev" || op === "next"){
+      const i = COLS.findIndex(x => x.id === c.col);
+      const ni = Math.min(COLS.length - 1, Math.max(0, i + (op === "next" ? 1 : -1)));
+      if (ni !== i){
+        c.col = COLS[ni].id;
+        logMsg('"' + c.title + '" → ' + COLS[ni].name);
+        renderBoard(); save();
+      }
+    } else if (op === "prompt"){
+      copyText(c.prompt || c.title, "프롬프트를 복사했어요");
+    } else if (op === "cli"){
+      copyText(cliFor(c), "로컬 CLI 명령을 복사했어요 (터미널에 붙여넣기)");
+    } else if (op === "ctx"){
+      copyText(handoffFor(c), "핸드오프 컨텍스트를 복사했어요");
+    } else if (op === "edit"){
+      openCardModal(c.id);
+    } else if (op === "del"){
+      if (confirm('"' + (c.title || "이 작업") + '" 카드를 삭제할까요?')){
+        state.board = state.board.filter(x => x.id !== c.id);
+        logMsg('카드 삭제: ' + c.title);
+        renderBoard(); save();
+      }
+    }
+  });
+  $("#addCardBtn").addEventListener("click", () => openCardModal(null));
+  $("#demoFillBtn").addEventListener("click", () => {
+    const demo = [
+      {title:"API 응답 스키마 정리", prompt:"주요 엔드포인트의 응답 스키마를 표로 정리하고, 프론트 타입과 어긋나는 필드를 지적해 주세요.", owner:"both", prio:"mid", col:"backlog"},
+      {title:"CI 실패 로그 원인 분석", prompt:"최근 실패한 워크플로 로그를 요약하고, 재발 방지책을 3개 제안해 주세요.", owner:"g2", prio:"high", col:"doing"},
+      {title:"테스트 커버리지 60% 달성", prompt:"핵심 모듈 우선으로 실패 케이스 테스트 초안을 작성해 주세요.", owner:"c1", prio:"low", col:"backlog"}
+    ];
+    demo.forEach(d => state.board.push(Object.assign({id:uid(), createdAt:Date.now()}, d)));
+    logMsg("예시 카드 3장 추가");
+    renderBoard(); save();
+    toast("예시 카드 3장을 넣었어요", "ok");
+  });
+}
+
+/* ── 카드 모달 ────────────────────────────────────────── */
+let editingId = null;
+function openCardModal(id){
+  editingId = id;
+  const c = id ? state.board.find(x => x.id === id) : null;
+  $("#modalTitle").textContent = c ? "작업 편집" : "작업 추가";
+  $("#mTitle").value = c ? c.title : "";
+  $("#mPrompt").value = c ? (c.prompt || "") : "";
+  $("#mOwner").innerHTML = ownerOptions(c ? c.owner : "");
+  $("#mPrio").value = c ? (c.prio || "mid") : "mid";
+  $("#mCol").value = c ? c.col : "backlog";
+  $("#mHint").textContent = "담당 계정을 고르면 ⌘ CLI 명령과 ⧉ 프롬프트에 그 계정 기준으로 만들어집니다.";
+  $("#overlay").classList.add("on");
+  setTimeout(() => $("#mTitle").focus(), 40);
+}
+function closeModal(){ $("#overlay").classList.remove("on"); editingId = null; }
+function saveCard(){
+  const title = $("#mTitle").value.trim();
+  if (!title){ toast("제목을 입력해 주세요", "err"); $("#mTitle").focus(); return; }
+  const data = {
+    title: title,
+    prompt: $("#mPrompt").value.trim(),
+    owner: $("#mOwner").value,
+    prio: $("#mPrio").value,
+    col: $("#mCol").value
+  };
+  const isEdit = !!editingId;
+  if (isEdit){
+    const c = state.board.find(x => x.id === editingId);
+    Object.assign(c, data);
+    logMsg("카드 수정: " + title);
+  } else {
+    state.board.unshift(Object.assign({id:uid(), createdAt:Date.now()}, data));
+    logMsg("카드 추가: " + title);
+  }
+  closeModal(); renderBoard(); save();
+  toast(isEdit ? "수정했어요" : "작업을 추가했어요", "ok");
+}
+
+/* ── GitHub 연동 ──────────────────────────────────────── */
+function repoPath(){ return "/repos/" + encodeURIComponent(state.repo.owner) + "/" + encodeURIComponent(state.repo.name); }
+function repoName(){ return (state.repo.owner || "-") + "/" + (state.repo.name || "-"); }
+function setRepoState(text, kind){
+  const el = $("#repoState");
+  el.textContent = text;
+  el.className = "pill" + (kind ? " " + kind : "");
+}
+async function ghFetch(path, method, body){
+  if (!state.repo.owner || !state.repo.name) throw new Error("Owner/Repo를 입력해 주세요");
+  const headers = {Accept: "application/vnd.github+json"};
+  if (state.repo.pat) headers["Authorization"] = "Bearer " + state.repo.pat;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const res = await fetch("https://api.github.com" + path, {
+    method: method || "GET", headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  const txt = await res.text();
+  let data = null;
+  try { data = txt ? JSON.parse(txt) : null; } catch(e){ data = {raw: txt}; }
+  if (!res.ok) throw new Error(res.status + " " + ((data && data.message) || res.statusText));
+  return data;
+}
+function ghItem(num, title, url, tail){
+  return '<div class="gh-item"><span class="num">#' + num + '</span><a class="t" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(title) + "</a>" + (tail || "") + "</div>";
+}
+async function loadRepo(){
+  if (!state.repo.owner || !state.repo.name){ toast("Owner/Repo를 먼저 입력해 주세요", "err"); return; }
+  setRepoState("불러오는 중…", "warn");
+  $("#repoLoadBtn").disabled = true;
+  try {
+    const info = await ghFetch(repoPath());
+    setRepoState((info.private ? "비공개" : "공개") + " · " + (info.default_branch || "main"), "ok");
+    const [issues, prs, runs] = await Promise.allSettled([
+      ghFetch(repoPath() + "/issues?state=open&sort=updated&per_page=12"),
+      ghFetch(repoPath() + "/pulls?state=open&sort=updated&per_page=8"),
+      ghFetch(repoPath() + "/actions/runs?per_page=6")
+    ]);
+    if (issues.status === "fulfilled"){
+      const list = (issues.value || []).filter(i => !i.pull_request);
+      $("#issueCount").textContent = list.length ? "(" + list.length + ")" : "";
+      $("#ghIssues").innerHTML = list.length ? list.map(i =>
+        ghItem(i.number, i.title, i.html_url,
+          '<button class="btn sm ghost" data-cmt="' + i.number + '" title="이 이슈에 트리거 코멘트">💬</button>')
+      ).join("") : '<div class="empty">열린 이슈 없음</div>';
+    } else {
+      $("#ghIssues").innerHTML = '<div class="empty">' + esc(String(issues.reason && issues.reason.message || issues.reason)) + "</div>";
+    }
+    if (prs.status === "fulfilled"){
+      const list = prs.value || [];
+      $("#prCount").textContent = list.length ? "(" + list.length + ")" : "";
+      $("#ghPrs").innerHTML = list.length ? list.map(p =>
+        ghItem(p.number, p.title, p.html_url,
+          '<button class="btn sm ghost" data-cmt="' + p.number + '" title="이 PR에 트리거 코멘트">💬</button>')
+      ).join("") : '<div class="empty">열린 PR 없음</div>';
+    } else {
+      $("#ghPrs").innerHTML = '<div class="empty">' + esc(String(prs.reason && prs.reason.message || prs.reason)) + "</div>";
+    }
+    if (runs.status === "fulfilled"){
+      const list = (runs.value && runs.value.workflow_runs) || [];
+      $("#runCount").textContent = list.length ? "(" + list.length + ")" : "";
+      $("#ghRuns").innerHTML = list.length ? list.map(r => {
+        const st = r.status === "completed" ? (r.conclusion || "완료") : r.status;
+        const cls = /success/.test(st) ? "ok" : /failure|cancel/.test(st) ? "bad" : "run";
+        return '<div class="gh-item"><a class="t" href="' + esc(r.html_url) + '" target="_blank" rel="noopener">' + esc(r.name || "workflow") + '</a><span class="st ' + cls + '">' + esc(st) + "</span></div>";
+      }).join("") : '<div class="empty">실행 기록 없음</div>';
+    } else {
+      $("#ghRuns").innerHTML = '<div class="empty">Actions 읽기 권한이 없습니다</div>';
+    }
+    logMsg("저장소 조회: " + repoName());
+  } catch(err){
+    setRepoState("오류", "bad");
+    toast("조회 실패: " + err.message, "err");
+  } finally {
+    $("#repoLoadBtn").disabled = false;
+  }
+}
+async function createIssue(){
+  const title = $("#issueTitle").value.trim();
+  const body = $("#issueBody").value;
+  if (!title){ toast("이슈 제목을 입력해 주세요", "err"); return; }
+  if (!state.repo.pat){ toast("이슈 생성에는 PAT(issues 쓰기)가 필요합니다", "err"); return; }
+  const btn = $("#issueCreateBtn");
+  btn.disabled = true;
+  try {
+    const d = await ghFetch(repoPath() + "/issues", "POST", {title, body});
+    toast("이슈 #" + d.number + " 생성", "ok");
+    logMsg("이슈 생성 #" + d.number + " " + title);
+    $("#issueTitle").value = ""; $("#issueBody").value = "";
+    $("#cmtNumber").value = d.number;
+    loadRepo();
+  } catch(err){ toast("이슈 생성 실패: " + err.message, "err"); }
+  finally { btn.disabled = false; }
+}
+async function sendComment(){
+  const n = Number($("#cmtNumber").value);
+  const body = $("#cmtBody").value.trim();
+  if (!n || n < 1){ toast("이슈/PR 번호를 입력해 주세요", "err"); return; }
+  if (!body){ toast("코멘트 내용을 입력해 주세요", "err"); return; }
+  if (!state.repo.pat){ toast("코멘트 작성에는 PAT가 필요합니다", "err"); return; }
+  const btn = $("#cmtSendBtn");
+  btn.disabled = true;
+  try {
+    await ghFetch(repoPath() + "/issues/" + n + "/comments", "POST", {body});
+    toast("#" + n + "에 코멘트를 남겼어요", "ok");
+    logMsg("코멘트 #" + n);
+    $("#cmtBody").value = "";
+    loadRepo();
+  } catch(err){ toast("코멘트 실패: " + err.message, "err"); }
+  finally { btn.disabled = false; }
+}
+
+/* ── GitHub Actions YAML 생성기 ───────────────────────── */
+const PY_ROUTE = String.raw`import json, os
+
+ev = {}
+p = os.environ.get("GITHUB_EVENT_PATH")
+if p and os.path.exists(p):
+    try:
+        with open(p, encoding="utf-8") as f:
+            ev = json.load(f)
+    except Exception:
+        ev = {}
+
+name = os.environ.get("GITHUB_EVENT_NAME", "")
+label_want = os.environ.get("AI_LABEL", "ai-collab")
+role_map = json.loads(os.environ.get("AI_ROLE_MAP") or "{}")
+all_roles = json.loads(os.environ.get("AI_ROLES") or '["all"]')
+body = (ev.get("comment") or {}).get("body") or ""
+
+trigger = ""
+if name == "workflow_dispatch":
+    trigger = (ev.get("inputs") or {}).get("agent") or "collab"
+elif name == "issues" and ((ev.get("label") or {}).get("name") == label_want):
+    trigger = "collab"
+elif body:
+    if "@collab" in body:
+        trigger = "collab"
+    elif "@claude" in body:
+        trigger = "claude"
+    elif "@gemini" in body:
+        trigger = "gemini"
+
+roles = []
+if trigger:
+    for r in all_roles:
+        fam = (role_map.get(r) or {}).get("family", "both")
+        if trigger == "collab" or fam in ("both", trigger):
+            roles.append(r)
+
+lines = [
+    "enabled=" + ("true" if roles else "false"),
+    "trigger=" + (trigger or "none"),
+    "roles=" + json.dumps(roles),
+]
+with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+    for line in lines:
+        f.write(line + "\n")
+print("route:", lines, flush=True)`;
+
+const PY_DRIVER = String.raw`import json, os, sys, time, urllib.request, urllib.error
+
+REPO = os.environ.get("GITHUB_REPOSITORY", "")
+TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+RUN_ID = os.environ.get("GITHUB_RUN_ID", "")
+ROLE = os.environ.get("AI_ROLE", "all")
+TRIGGER = os.environ.get("AI_TRIGGER", "collab")
+STRATEGY = os.environ.get("AI_STRATEGY", "rotate")
+ROLE_MAP = json.loads(os.environ.get("AI_ROLE_MAP") or "{}")
+ROLE_LABELS = json.loads(os.environ.get("AI_ROLE_LABELS") or "{}")
+CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-5")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+NAME = {"claude": "Claude", "gemini": "Gemini"}
+
+ROLE_PROMPTS = {
+    "all": "너는 Claude와 Gemini가 함께 쓰는 협업 에이전트다. 맡은 요청을 끝까지 정리해 실행 가능한 결론을 낸다.",
+    "architect": "너는 팀의 아키텍트다. 구조와 인터페이스, 리스크를 먼저 정리하고 작업을 쪼개 지시한다.",
+    "implement": "너는 구현 담당이다. 실제로 붙일 수 있는 코드를 파일 경로와 함께 제시한다.",
+    "review": "너는 코드 리뷰어다. 버그와 회귀 위험을 먼저 짚고, 바로 적용할 수정안을 제안한다.",
+    "analyze": "너는 저장소와 문서 분석 담당이다. 큰 문맥을 요약하고 관련 파일을 정확히 짚어 준다.",
+    "test": "너는 테스트 담당이다. 실패 케이스를 먼저 정의하고 테스트 코드 초안을 쓴다.",
+    "security": "너는 보안과 엣지케이스 담당이다. 입력 검증, 권한, 비밀 노출, 경계 조건을 점검한다.",
+}
+RULES = ("팀 규칙: 한국어로 답한다. 결론을 먼저 쓰고 근거와 파일 경로를 붙인다. "
+         "확실하지 않은 것은 '추정'이라고 표시한다. 이 실행은 저장소를 수정하지 못하므로(읽기 전용) "
+         "필요한 변경은 담당자가 그대로 실행할 수 있는 지시나 패치 형태로 남긴다. 600단어 이내로 쓴다.")
+
+
+def _req(method, url, payload, headers, timeout=180):
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, json.loads(r.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", "replace")
+        try:
+            return e.code, json.loads(raw)
+        except Exception:
+            return e.code, raw
+    except Exception as ex:
+        return 0, str(ex)
+
+
+def short(x, n=180):
+    if isinstance(x, dict):
+        err = x.get("error")
+        if isinstance(err, dict):
+            msg = err.get("message") or json.dumps(err, ensure_ascii=False)
+        else:
+            msg = x.get("message") or json.dumps(x, ensure_ascii=False)
+    else:
+        msg = x
+    return str(msg).replace("\n", " ")[:n]
+
+
+def load_event():
+    p = os.environ.get("GITHUB_EVENT_PATH")
+    if p and os.path.exists(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def target_number(ev):
+    issue = ev.get("issue") or {}
+    if issue.get("number"):
+        return issue.get("number")
+    pr = ev.get("pull_request") or {}
+    return pr.get("number")
+
+
+def build_task(ev):
+    parts = []
+    issue = ev.get("issue") or {}
+    pr = ev.get("pull_request") or {}
+    if issue:
+        parts.append("# 이슈 #%s: %s\n\n%s" % (issue.get("number"), issue.get("title") or "",
+                                               (issue.get("body") or "")[:6000]))
+    elif pr:
+        parts.append("# PR #%s: %s\n\n%s" % (pr.get("number"), pr.get("title") or "",
+                                             (pr.get("body") or "")[:6000]))
+    c = (ev.get("comment") or {}).get("body")
+    if c:
+        parts.append("## 요청 코멘트\n\n" + c[:4000])
+    if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+        inp = ev.get("inputs") or {}
+        if inp.get("task"):
+            parts.append("## 수동 지시\n\n" + str(inp.get("task"))[:3000])
+    if not parts:
+        parts.append("저장소의 현재 상태를 점검하고, 다음에 할 일 3가지를 우선순위와 함께 제안해 줘.")
+    return "\n\n".join(parts)
+
+
+def key_list(prefix):
+    out = {}
+    for i in range(1, 10):
+        v = os.environ.get("%s_%d" % (prefix, i))
+        if v and v.strip():
+            out[i] = v.strip()
+    return out
+
+
+def resolve_chain(fam, order):
+    avail = key_list("ANTHROPIC_API_KEY" if fam == "claude" else "GEMINI_API_KEY")
+    if isinstance(order, dict):
+        want = order.get(fam) or []
+    else:
+        want = order or []
+    want = [int(x) for x in want if str(x).isdigit()]
+    seq = [i for i in want if i in avail]
+    if STRATEGY != "role":
+        seq += [i for i in sorted(avail) if i not in seq]
+    if not seq and avail:
+        seq = sorted(avail)
+    return [(i, avail[i]) for i in seq]
+
+
+def call(fam, key, system, user):
+    if fam == "claude":
+        code, res = _req("POST", "https://api.anthropic.com/v1/messages",
+                         {"model": CLAUDE_MODEL, "max_tokens": 3000, "system": system,
+                          "messages": [{"role": "user", "content": user}]},
+                         {"x-api-key": key, "anthropic-version": "2023-06-01",
+                          "content-type": "application/json"})
+        if code == 200:
+            txt = "".join(p.get("text", "") for p in (res.get("content") or []))
+            return True, txt
+        return False, res
+    code, res = _req("POST",
+                     "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % GEMINI_MODEL,
+                     {"system_instruction": {"parts": [{"text": system}]},
+                      "contents": [{"role": "user", "parts": [{"text": user}]}],
+                      "generationConfig": {"maxOutputTokens": 3000}},
+                     {"x-goog-api-key": key, "content-type": "application/json"})
+    if code == 200:
+        cands = res.get("candidates") or []
+        if not cands:
+            return False, "빈 응답 (안전 필터 또는 토큰 한도 가능성)"
+        parts = ((cands[0].get("content") or {}).get("parts") or [])
+        return True, "".join(p.get("text", "") for p in parts)
+    return False, res
+
+
+def comment(num, body):
+    if not num or not TOKEN:
+        print("comment skipped", flush=True)
+        return
+    code, res = _req("POST", "https://api.github.com/repos/%s/issues/%s/comments" % (REPO, num),
+                     {"body": body},
+                     {"Authorization": "Bearer " + TOKEN,
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                      "User-Agent": "ai-collab-workflow"})
+    print("comment ->", code, short(res, 120), flush=True)
+
+
+def step_summary(text):
+    p = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not p:
+        return
+    try:
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(text + "\n")
+    except Exception:
+        pass
+
+
+def main():
+    ev = load_event()
+    num = target_number(ev)
+    task = build_task(ev)
+    spec = ROLE_MAP.get(ROLE) or {"family": "both", "order": {}}
+    fam = spec.get("family", "both")
+    order = spec.get("order") or []
+    fams = ["claude", "gemini"] if fam == "both" else [fam]
+    if fam == "both" and TRIGGER in ("claude", "gemini"):
+        fams = [TRIGGER]
+    role_label = ROLE_LABELS.get(ROLE, ROLE)
+    system = "%s\n\n%s" % (ROLE_PROMPTS.get(ROLE, ROLE_PROMPTS["all"]), RULES)
+
+    print("role=%s trigger=%s strategy=%s fams=%s" % (ROLE, TRIGGER, STRATEGY, fams), flush=True)
+    tried = []
+    for f in fams:
+        seq = resolve_chain(f, order)
+        if not seq:
+            tried.append("- %s: 등록된 키 없음" % NAME[f])
+            continue
+        for idx, key in seq:
+            total = len(seq)
+            ok, out = call(f, key, system, task)
+            if ok and str(out).strip():
+                model = CLAUDE_MODEL if f == "claude" else GEMINI_MODEL
+                head = "### %s · %s (계정 #%d/%d)\n" % (NAME[f], role_label, idx, total)
+                meta = "> 전략 `%s` · 모델 `%s` · 트리거 `%s`\n\n" % (STRATEGY, model, TRIGGER)
+                foot = ("\n\n---\n<sub>AI 협업 자동 응답 · 계정 %d/%d · "
+                        "[실행 로그](https://github.com/%s/actions/runs/%s)</sub>\n") % (idx, total, REPO, RUN_ID)
+                comment(num, head + meta + str(out).strip() + foot)
+                step_summary("## %s · %s\n\n- 계정: #%d/%d\n- 모델: %s\n\n%s\n" % (NAME[f], role_label, idx, total, model, str(out)[:2000]))
+                print("ok:", f, idx, flush=True)
+                return 0
+            tried.append("- %s 계정 #%d: %s" % (NAME[f], idx, short(out)))
+            if str(short(out, 40)).startswith("429") or "quota" in short(out, 200).lower():
+                time.sleep(3)
+        print("family exhausted:", f, flush=True)
+
+    body = "### AI 호출 실패 (%s)\n\n활성 계정이 모두 응답하지 않았습니다.\n\n%s\n\n" % (role_label, "\n".join(tried) or "- 시도 없음")
+    body += "<sub>키를 새로 등록하거나(ANTHROPIC_API_KEY_n / GEMINI_API_KEY_n) 잠시 후 다시 실행해 주세요.</sub>"
+    comment(num, body)
+    step_summary("## AI 호출 실패\n\n" + "\n".join(tried))
+    print("FAILED", tried, flush=True)
+    return 1
+
+
+sys.exit(main())`;
+
+function indentBlock(text, n){
+  const pad = " ".repeat(n);
+  return text.replace(/\s+$/, "").split("\n").map(l => l.length ? pad + l : "").join("\n");
+}
+function buildRoleMap(){
+  const plan = secretPlan();
+  const both = () => ({
+    claude: state.accounts.claude.filter(a => a.enabled).map((a, i) => String(i + 1)),
+    gemini: state.accounts.gemini.filter(a => a.enabled).map((a, i) => String(i + 1))
+  });
+  if (state.strategy === "rotate"){
+    return {roles:["all"], map:{all:{family:"both", order:both()}}};
+  }
+  const roles = ROLES.map(r => r.id).filter(rid => primaryFor(rid));
+  if (!roles.length) return {roles:["all"], map:{all:{family:"both", order:both()}}};
+  const map = {};
+  roles.forEach(rid => {
+    const p = primaryFor(rid);
+    const fam = familyOf(p.id);
+    const ord = [String(plan[fam][p.id])];
+    if (state.strategy === "hybrid"){
+      famOrder(fam).forEach(a => {
+        const n = String(plan[fam][a.id]);
+        if (n && ord.indexOf(n) === -1) ord.push(n);
+      });
+    }
+    map[rid] = {family: fam, order: ord};
+  });
+  return {roles, map};
+}
+function triggerMentions(){
+  const t = state.triggers, m = [];
+  if (t.claude) m.push("@claude");
+  if (t.gemini) m.push("@gemini");
+  if (t.collab) m.push("@collab");
+  return m.length ? m.join(" · ") : "(코멘트 트리거 없음)";
+}
+
+function buildYaml(){
+  const out = $("#yamlOut");
+  if (!out) return;
+  const cList = state.accounts.claude.filter(a => a.enabled);
+  const gList = state.accounts.gemini.filter(a => a.enabled);
+  const t = state.triggers;
+  const rm = buildRoleMap();
+  const timeout = Math.min(120, Math.max(5, Number(state.timeout) || 30));
+  const labels = {all:"공동"};
+  ROLES.forEach(r => { labels[r.id] = r.name; });
+  const L = [];
+  const P = (...xs) => xs.forEach(x => L.push(x));
+
+  P("# " + "═".repeat(62));
+  P("#  AI 협업 워크플로 · GitHub Actions (AI 협업 콘솔 자동 생성)");
+  P("#  Claude " + cList.length + "개 · Gemini " + gList.length + "개 · 전략: " + STRATEGY_NAME[state.strategy]);
+  P("#  생성: " + nowStamp());
+  P("#");
+  P("#  설치");
+  P("#   1) 이 내용을 저장소의 .github/workflows/ai-collab.yml 로 저장");
+  P("#   2) Settings → Secrets and variables → Actions 에 시크릿 등록");
+  cList.forEach((a, i) => P("#        ANTHROPIC_API_KEY_" + (i + 1) + "   ← " + a.label));
+  gList.forEach((a, i) => P("#        GEMINI_API_KEY_" + (i + 1) + "      ← " + a.label));
+  P("#   3) 이슈·PR 코멘트에 " + triggerMentions() + " 중 하나를 적으면 실행");
+  P("# " + "═".repeat(62));
+  P("name: AI Collab (Claude + Gemini)");
+  P("");
+  P("on:");
+  const onComment = !!(t.claude || t.gemini || t.collab);
+  if (onComment){
+    P("  issue_comment:", "    types: [created]");
+    P("  pull_request_review_comment:", "    types: [created]");
+  }
+  if (t.label) P("  issues:", "    types: [labeled]");
+  if (t.dispatch || (!onComment && !t.label)){
+    P("  workflow_dispatch:");
+    P("    inputs:");
+    P('      agent:', '        description: "실행할 에이전트 (claude / gemini / collab)"',
+      "        required: true", "        default: collab", "        type: choice",
+      "        options: [collab, claude, gemini]");
+    P("      task:", '        description: "추가 지시 (선택)"', "        required: false", "        type: string");
+  }
+  P("");
+  P("permissions:", "  contents: read", "  issues: write", "  pull-requests: write");
+  P("");
+  P("concurrency:");
+  P('  group: ai-collab-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}');
+  P("  cancel-in-progress: false");
+  P("");
+  P("env:");
+  P("  AI_STRATEGY: " + state.strategy);
+  P("  AI_LABEL: " + (t.labelName || "ai-collab"));
+  P("  CLAUDE_MODEL: " + (state.models.claude || "claude-sonnet-4-5"));
+  P("  GEMINI_MODEL: " + (state.models.gemini || "gemini-2.5-pro"));
+  P("  AI_ROLES: '" + JSON.stringify(rm.roles) + "'");
+  P("  AI_ROLE_MAP: '" + JSON.stringify(rm.map) + "'");
+  P("  AI_ROLE_LABELS: '" + JSON.stringify(labels) + "'");
+  P("");
+  P("jobs:");
+  P("  route:");
+  P("    runs-on: ubuntu-latest");
+  P("    outputs:");
+  P("      enabled: ${{ steps.route.outputs.enabled }}");
+  P("      trigger: ${{ steps.route.outputs.trigger }}");
+  P("      roles: ${{ steps.route.outputs.roles }}");
+  P("    steps:");
+  P("      - id: route");
+  P("        shell: bash");
+  P("        run: |");
+  P("          python3 - <<'PY'");
+  L.push(indentBlock(PY_ROUTE, 10));
+  P("          PY");
+  P("");
+  P("  collab:");
+  P("    needs: route");
+  P("    if: needs.route.outputs.enabled == 'true'");
+  P("    runs-on: ubuntu-latest");
+  P("    timeout-minutes: " + timeout);
+  P("    strategy:");
+  P("      fail-fast: false");
+  P("      max-parallel: " + Math.max(1, Math.min(4, cList.length + gList.length)));
+  P("      matrix:");
+  P("        role: ${{ fromJSON(needs.route.outputs.roles) }}");
+  P("    steps:");
+  P("      - uses: actions/checkout@v4");
+  P("      - name: AI 응답 생성 (${{ matrix.role }})");
+  P("        env:");
+  P("          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
+  P("          AI_ROLE: ${{ matrix.role }}");
+  P("          AI_TRIGGER: ${{ needs.route.outputs.trigger }}");
+  cList.forEach((a, i) => P("          ANTHROPIC_API_KEY_" + (i + 1) + ": ${{ secrets.ANTHROPIC_API_KEY_" + (i + 1) + " }}"));
+  gList.forEach((a, i) => P("          GEMINI_API_KEY_" + (i + 1) + ": ${{ secrets.GEMINI_API_KEY_" + (i + 1) + " }}"));
+  P("        run: |");
+  P("          python3 - <<'PY'");
+  L.push(indentBlock(PY_DRIVER, 10));
+  P("          PY");
+  P("");
+  P("# " + "─".repeat(62));
+  P("# 참고");
+  P("#  · 계정을 늘리려면 Secret(ANTHROPIC_API_KEY_4 …)을 추가하고 위 env 에 한 줄만 더하세요.");
+  P("#  · 429·한도 오류가 나면 같은 진영의 다음 번호 키로 자동 폴백합니다.");
+  P("#  · 저장소는 읽기 전용으로 다루고, 결과는 이슈 코멘트로만 남깁니다.");
+
+  out.textContent = L.join("\n");
+  out.className = "yaml";
+  $("#yamlLines").textContent = L.length + "줄 · " + (L.join("\n").length / 1024).toFixed(1) + "KB";
+  const badge = $("#yamlBadge");
+  const ok = cList.length + gList.length > 0;
+  badge.textContent = ok ? "생성 완료" : "계정을 켜 주세요";
+  badge.className = "pill " + (ok ? "ok" : "warn");
+}
+
+function renderGenSummary(){
+  const c = state.accounts.claude.filter(a => a.enabled).length;
+  const g = state.accounts.gemini.filter(a => a.enabled).length;
+  if (!$("#sumClaude")) return;
+  $("#sumClaude").textContent = c + " / 3";
+  $("#sumGemini").textContent = g + " / 4";
+  $("#sumStrategy").textContent = STRATEGY_NAME[state.strategy];
+  const jobs = state.strategy === "rotate" ? 1 : Math.max(1, ROLES.filter(r => primaryFor(r.id)).length);
+  $("#sumJobs").textContent = jobs + "개";
+}
+
+/* ── 가이드 ───────────────────────────────────────────── */
+function buildGuide(){
+  const cList = state.accounts.claude.filter(a => a.enabled);
+  const gList = state.accounts.gemini.filter(a => a.enabled);
+  const rows = [];
+  cList.forEach((a, i) => rows.push("<code>ANTHROPIC_API_KEY_" + (i + 1) + "</code> ← " + esc(a.label)));
+  gList.forEach((a, i) => rows.push("<code>GEMINI_API_KEY_" + (i + 1) + "</code> ← " + esc(a.label)));
+  const secrets = rows.length ? rows.join("<br>") : "<i>켜진 계정이 없습니다</i>";
+  const repo = esc(repoName());
+  const html = [
+    "<li>저장소 <b>" + repo + "</b>에 <code>.github/workflows/ai-collab.yml</code> 파일을 만듭니다. (오른쪽 <b>.yml 다운로드</b> 후 업로드하거나, 내용을 복사해 새 파일로 저장)</li>",
+    "<li><b>Settings → Secrets and variables → Actions → New repository secret</b> 에서 아래 시크릿을 하나씩 등록합니다.<br>" + secrets + "</li>",
+    "<li>CLI로 한 번에 넣으려면: <code>gh secret set ANTHROPIC_API_KEY_1 -R " + esc(repoName()) + "</code> (키 값을 붙여넣고 Enter, 나머지도 같은 방식)</li>",
+    "<li>이슈나 PR 코멘트에 <code>@claude</code> · <code>@gemini</code> · <code>@collab</code> 중 하나를 적으면 워크플로가 실행되고, 결과가 같은 이슈에 코멘트로 달립니다." + (state.triggers.label ? " 라벨 <code>" + esc(state.triggers.labelName || "ai-collab") + "</code> 을 붙여도 실행됩니다." : "") + "</li>",
+    "<li>동작 확인은 저장소 <b>Actions</b> 탭 → <b>AI Collab (Claude + Gemini)</b> → <b>Run workflow</b>. 처음 한 번은 Actions 권한(<b>Settings → Actions → General → Workflow permissions</b>)도 확인하세요.</li>",
+    "<li>한도가 소진되면 같은 진영의 다음 번호 키로 자동 폴백합니다. 계정을 더 쓰려면 <code>ANTHROPIC_API_KEY_4</code>, <code>GEMINI_API_KEY_5</code> 처럼 Secret을 추가하고 워크플로 <code>env</code>에 한 줄만 더하면 됩니다.</li>"
+  ].join("");
+  $("#guideList").innerHTML = html;
+  return [
+    "AI 협업 워크플로 설치 가이드 (" + repoName() + ")",
+    "1) .github/workflows/ai-collab.yml 파일 추가 (다운로드한 ai-collab.yml 업로드)",
+    "2) Settings → Secrets and variables → Actions 에 등록:",
+    ...rows.map(r => "   - " + r.replace(/<[^>]+>/g, "")),
+    "3) 이슈/PR 코멘트에 " + triggerMentions() + " 중 하나를 적으면 실행",
+    "4) Actions 탭 → AI Collab (Claude + Gemini) → Run workflow 로 수동 실행 가능",
+    "5) 키는 HTML·저장소 코드에 넣지 말고 Secrets 에만 둡니다."
+  ].join("\n");
+}
+
+/* ── UI 바인딩 ────────────────────────────────────────── */
+function applyTheme(){
+  document.documentElement.dataset.theme = state.theme === "light" ? "light" : "dark";
+  $("#themeBtn").textContent = state.theme === "light" ? "☀️" : "🌙";
+}
+function applyMode(){
+  $$("#modeSeg button").forEach(b => b.classList.toggle("on", b.getAttribute("data-mode") === state.mode));
+  $("#pane-dashboard").classList.toggle("on", state.mode === "dashboard");
+  $("#pane-actions").classList.toggle("on", state.mode === "actions");
+  if (state.mode === "actions"){ buildYaml(); renderGenSummary(); }
+}
+function applyStateToInputs(){
+  $("#repoOwner").value = state.repo.owner || "";
+  $("#repoName").value = state.repo.name || "";
+  $("#repoPat").value = state.repo.pat || "";
+  $("#modelClaude").value = state.models.claude || "";
+  $("#modelGemini").value = state.models.gemini || "";
+  $("#labelName").value = state.triggers.labelName || "ai-collab";
+  $("#timeoutMin").value = state.timeout || 30;
+  $$("#pane-actions [data-trigger]").forEach(cb => { cb.checked = !!state.triggers[cb.getAttribute("data-trigger")]; });
+  applyTheme(); applyMode();
+}
+
+function bindUI(){
+  $$("#modeSeg button").forEach(b => b.addEventListener("click", () => {
+    state.mode = b.getAttribute("data-mode"); applyMode(); save();
+  }));
+  $$("#strategySeg button").forEach(b => b.addEventListener("click", () => {
+    state.strategy = b.getAttribute("data-strategy");
+    logMsg("전략 → " + STRATEGY_NAME[state.strategy]);
+    renderStrategyHint(); renderAllAccounts(); save();
+  }));
+  $("#themeBtn").addEventListener("click", () => {
+    state.theme = state.theme === "light" ? "dark" : "light"; applyTheme(); save();
+  });
+  $("#handoffBtn").addEventListener("click", () => {
+    const all = famOrder("claude").concat(famOrder("gemini"));
+    const cur = all.find(a => a.status === "active");
+    if (!cur){ toast("전환할 활성 계정이 없어요", "err"); return; }
+    cur.status = "cool"; cur.cooldownUntil = Date.now() + 60 * 60000; cur.usage = 100;
+    logMsg(cur.label + " 한도 도달 → 다음 계정으로 인계");
+    renderAllAccounts(); save();
+    toast(cur.label + "을(를) 쿨다운으로 돌리고 다음 계정으로 인계했어요", "ok");
+  });
+  $("#clearLogBtn").addEventListener("click", () => { state.log = []; renderLog(); save(); });
+
+  // 저장소
+  [["repoOwner","owner"],["repoName","name"],["repoPat","pat"]].forEach(([id, key]) => {
+    $("#" + id).addEventListener("input", e => { state.repo[key] = e.target.value.trim(); save(); });
+  });
+  $("#patSaveBtn").addEventListener("click", () => {
+    state.repo.pat = $("#repoPat").value.trim(); save();
+    toast(state.repo.pat ? "PAT를 이 브라우저에 저장했어요" : "PAT가 비어 있습니다", state.repo.pat ? "ok" : "info");
+    logMsg("PAT " + (state.repo.pat ? "저장(로컬)" : "비움"));
+  });
+  $("#patClearBtn").addEventListener("click", () => {
+    state.repo.pat = ""; $("#repoPat").value = ""; save(); toast("PAT를 지웠어요", "info");
+  });
+  $("#repoLoadBtn").addEventListener("click", loadRepo);
+  $("#repoTestBtn").addEventListener("click", async () => {
+    try {
+      const info = await ghFetch(repoPath());
+      toast(info.full_name + " 연결됨 · " + (info.private ? "비공개" : "공개") + " · ★" + info.stargazers_count, "ok");
+      setRepoState((info.private ? "비공개" : "공개") + " · " + (info.default_branch || "main"), "ok");
+      logMsg("연결 확인: " + info.full_name);
+    } catch(err){ setRepoState("오류", "bad"); toast("연결 실패: " + err.message, "err"); }
+  });
+  $("#ghLists").addEventListener("click", e => {
+    const b = e.target.closest("[data-cmt]"); if (!b) return;
+    $("#cmtNumber").value = b.getAttribute("data-cmt");
+    $$("#ghTabSeg button").forEach(x => x.classList.toggle("on", x.getAttribute("data-gtab") === "comment"));
+    $("#ghFormIssue").style.display = "none"; $("#ghFormComment").style.display = "";
+    $("#cmtBody").focus();
+  });
+  $$("#ghTabSeg button").forEach(b => b.addEventListener("click", () => {
+    const tab = b.getAttribute("data-gtab");
+    $$("#ghTabSeg button").forEach(x => x.classList.toggle("on", x === b));
+    $("#ghFormIssue").style.display = tab === "issue" ? "" : "none";
+    $("#ghFormComment").style.display = tab === "comment" ? "" : "none";
+  }));
+  $("#issueCreateBtn").addEventListener("click", createIssue);
+  $("#cmtSendBtn").addEventListener("click", sendComment);
+  $$("[data-insert]").forEach(b => b.addEventListener("click", () => {
+    const el = $("#issueBody");
+    el.value = (el.value && !/\s$/.test(el.value) ? el.value + " " : el.value) + b.getAttribute("data-insert");
+    el.focus();
+  }));
+  $$("[data-insert-cmt]").forEach(b => b.addEventListener("click", () => {
+    const el = $("#cmtBody");
+    el.value = (el.value && !/\s$/.test(el.value) ? el.value + " " : el.value) + b.getAttribute("data-insert-cmt");
+    el.focus();
+  }));
+
+  // 생성기 입력
+  $$("#pane-actions [data-trigger]").forEach(cb => cb.addEventListener("change", () => {
+    state.triggers[cb.getAttribute("data-trigger")] = cb.checked;
+    buildYaml(); save();
+  }));
+  $("#labelName").addEventListener("input", e => { state.triggers.labelName = e.target.value.trim() || "ai-collab"; buildYaml(); save(); });
+  $("#modelClaude").addEventListener("input", e => { state.models.claude = e.target.value.trim(); buildYaml(); save(); });
+  $("#modelGemini").addEventListener("input", e => { state.models.gemini = e.target.value.trim(); buildYaml(); save(); });
+  $("#timeoutMin").addEventListener("input", e => { state.timeout = Number(e.target.value) || 30; buildYaml(); save(); });
+  $("#copyYamlBtn").addEventListener("click", () => copyText($("#yamlOut").textContent, "워크플로 YAML을 복사했어요"));
+  $("#dlYamlBtn").addEventListener("click", () => {
+    const blob = new Blob([$("#yamlOut").textContent], {type:"text/yaml;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "ai-collab.yml";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast("ai-collab.yml 다운로드", "ok");
+    logMsg("워크플로 YAML 다운로드");
+  });
+  $("#copyGuideBtn").addEventListener("click", () => copyText(buildGuide(), "등록 가이드를 복사했어요"));
+  $("#resetGenBtn").addEventListener("click", () => {
+    if (!confirm("모든 설정(계정·보드·레포·로그)을 처음 상태로 되돌릴까요?")) return;
+    state = defaultState(); state.repo.pat = "";
+    applyStateToInputs(); renderAll(); save();
+    toast("초기화했어요", "info");
+  });
+
+  // 내보내기 / 불러오기
+  $("#exportBtn").addEventListener("click", () => {
+    const copy = JSON.parse(JSON.stringify(state));
+    if (copy.repo) delete copy.repo.pat;
+    const blob = new Blob([JSON.stringify(copy, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "ai-collab-settings-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast("설정을 내보냈어요 (PAT는 제외)", "ok");
+  });
+  $("#importBtn").addEventListener("click", () => $("#importFile").click());
+  $("#importFile").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const pat = state.repo.pat;
+        mergeState(data);
+        if (!state.repo.pat) state.repo.pat = pat || "";
+        applyStateToInputs(); renderAll(); save();
+        toast("설정을 불러왔어요", "ok");
+        logMsg("설정 JSON 불러오기");
+      } catch(err){ toast("JSON을 읽을 수 없어요", "err"); }
+    };
+    reader.readAsText(f);
+    e.target.value = "";
+  });
+
+  // 모달
+  $("#mCancel").addEventListener("click", closeModal);
+  $("#mSave").addEventListener("click", saveCard);
+  $("#overlay").addEventListener("click", e => { if (e.target === $("#overlay")) closeModal(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && $("#overlay").classList.contains("on")) closeModal();
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && $("#overlay").classList.contains("on")) saveCard();
+  });
+  bindBoard();
+  bindAccountGroup("#claudeGroup");
+  bindAccountGroup("#geminiGroup");
+}
+
+/* ── 렌더·틱·시작 ─────────────────────────────────────── */
+function renderAll(){
+  renderAccounts(); renderOrder(); renderMatrix(); renderStrategyHint();
+  renderBoard(); renderLog(); renderGenSummary(); buildYaml(); buildGuide();
+}
+function tick(){
+  const anyCool = ["claude","gemini"].some(f => state.accounts[f].some(a => a.status === "cool" && a.cooldownUntil));
+  if (!anyCool) return;
+  const expired = refreshCoolTags();
+  if (expired){
+    ["claude","gemini"].forEach(f => state.accounts[f].forEach(a => {
+      if (a.status === "cool" && a.cooldownUntil && Date.now() >= a.cooldownUntil){
+        a.status = "active"; a.cooldownUntil = 0; a.usage = 0;
+        logMsg(a.label + " 쿨다운 종료 → 활성");
+      }
+    }));
+    renderAllAccounts(); save();
+  }
+}
+let started = false;
+function init(){
+  if (started) return;
+  started = true;
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) mergeState(JSON.parse(raw));
+  } catch(e){ /* 저장값이 깨졌으면 기본값으로 시작 */ }
+  applyStateToInputs();
+  bindUI();
+  renderAll();
+  setInterval(tick, 1000);
+  // 저장 상태 문구
+  const el = $("#saveText");
+  if (el) el.textContent = "자동 저장";
+}
+document.addEventListener("DOMContentLoaded", init);
+if (document.readyState !== "loading") init();
+})();
+</script>
+</body>
+</html>
