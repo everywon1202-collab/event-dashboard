@@ -202,7 +202,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:2px solid var(
 .acct-cfg{display:flex;gap:5px;margin-top:5px}
 .acct-cfg select{padding:4px 19px 4px 6px;font-size:10.5px;border-radius:7px;min-width:0;background-position:calc(100% - 12px) 51%,calc(100% - 8px) 51%}
 .acct-cfg select.mdl{flex:1 1 auto}
-.acct-cfg select.thk{flex:0 0 76px}
+.acct-cfg select.thk{flex:0 0 92px}
 .acct-prof{display:flex;gap:5px;margin-top:5px;align-items:center}
 .acct-prof input{flex:1;min-width:0;padding:3px 7px;font-size:10px;border-radius:7px;font-family:var(--mono);color:var(--muted)}
 .acct-prof .btn{padding:3px 6px;font-size:10.5px;border-radius:7px;flex:0 0 auto}
@@ -618,13 +618,13 @@ pre.yaml .h{color:#e2e8f5;font-weight:700}
 
       <div class="card guide">
         <div class="card-head">
-          <h2>GitHub Secrets 등록 가이드</h2>
+          <h2 id="guideTitle">설치 가이드</h2>
           <span class="spacer"></span>
           <button class="btn sm ghost" id="copyGuideBtn">가이드 복사</button>
         </div>
         <ol id="guideList"></ol>
         <div class="warnbox">
-          ⚠️ API 키는 절대 이 HTML이나 저장소 코드에 넣지 마세요. 이 페이지는 키를 저장하지 않으며, 키는 GitHub 저장소의 <b>Secrets</b>에만 둡니다. 워크플로는 저장소를 <b>읽기 전용</b>으로 다루고, 결과는 코멘트로만 남깁니다.
+          ⚠️ 키·토큰은 절대 이 HTML이나 저장소 코드에 넣지 마세요. 이 페이지는 값을 저장하지 않고, GitHub <b>Secrets</b>에만 둡니다. <b>내 PC 로그인</b> 모드는 키가 아예 필요 없습니다. 워크플로는 저장소를 <b>읽기 전용</b>으로 다루고, 결과는 코멘트로만 남깁니다.
         </div>
       </div>
     </section>
@@ -2203,6 +2203,8 @@ function buildGuide(){
     text.push("3) 이슈/PR 코멘트에 " + triggerMentions() + " 중 하나 → 실행");
   }
   $("#guideList").innerHTML = html.join("");
+  const gt = $("#guideTitle");
+  if (gt) gt.textContent = loginMode ? "설치 가이드 · 내 PC 로그인" : "설치 가이드 · OAuth·API Secrets";
   return text.join("\n");
 }
 
