@@ -173,7 +173,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:2px solid var(
 .acct.off{opacity:.42;filter:saturate(.4);border-left-color:var(--line2)}
 .acct-top{display:flex;align-items:center;gap:7px}
 .acct-name{font-weight:700;font-size:12.5px;letter-spacing:-.1px}
-.acct .secret{font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-left:auto;letter-spacing:-.2px}
+.acct .secret{font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-left:auto;letter-spacing:-.2px;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .status-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
 .status-dot.active{background:var(--ok);box-shadow:0 0 0 3px rgba(61,220,151,.16)}
 .status-dot.cool{background:var(--warn);box-shadow:0 0 0 3px rgba(245,196,81,.16)}
@@ -196,6 +196,29 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:2px solid var(
 .switch input:checked + span{background:var(--accent)}
 .switch input:checked + span:after{transform:translateX(13px);background:#fff}
 .cool-tag{font-size:10px;font-family:var(--mono);color:var(--warn)}
+.acct-login{display:flex;gap:5px;margin-top:6px}
+.acct-login input{flex:1;min-width:0;padding:4px 7px;font-size:10.5px;border-radius:7px}
+.acct-login .btn{padding:4px 7px;font-size:11px;border-radius:7px;flex:0 0 auto}
+.acct-cfg{display:flex;gap:5px;margin-top:5px}
+.acct-cfg select{padding:4px 19px 4px 6px;font-size:10.5px;border-radius:7px;min-width:0;background-position:calc(100% - 12px) 51%,calc(100% - 8px) 51%}
+.acct-cfg select.mdl{flex:1 1 auto}
+.acct-cfg select.thk{flex:0 0 76px}
+.acct-prof{display:flex;gap:5px;margin-top:5px;align-items:center}
+.acct-prof input{flex:1;min-width:0;padding:3px 7px;font-size:10px;border-radius:7px;font-family:var(--mono);color:var(--muted)}
+.acct-prof .btn{padding:3px 6px;font-size:10.5px;border-radius:7px;flex:0 0 auto}
+.acct-empty{font-size:10px;color:var(--dim);padding:0 2px 2px}
+.pool-actions{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.pool-actions .btn{flex:1;font-size:11px;padding:5px 6px}
+.grp-title .count{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim);text-transform:none;letter-spacing:0}
+.think-tbl{width:100%;border-collapse:collapse;font-size:10px;margin-top:9px}
+.think-tbl th{font-size:9px;color:var(--dim);font-weight:700;text-align:left;padding:0 3px 4px;letter-spacing:.02em;white-space:nowrap}
+.think-tbl td{padding:4px 3px;border-top:1px solid var(--line);color:var(--muted);vertical-align:top;line-height:1.4}
+.think-tbl tr.on td{background:rgba(139,140,255,.08)}
+.think-tbl td:first-child{font-weight:800;color:var(--text);white-space:nowrap}
+.think-tbl .cl{color:var(--claude)} .think-tbl .gm{color:var(--gemini)}
+.think-note{font-size:10px;color:var(--dim);margin-top:5px;line-height:1.5}
+.cfgchip{font-family:var(--mono);font-size:9.5px;color:var(--accent);background:rgba(139,140,255,.12);border:1px solid rgba(139,140,255,.3);border-radius:5px;padding:1px 5px;white-space:nowrap}
+.auth-warn{margin-top:8px;padding:8px 10px;border-radius:9px;background:rgba(245,196,81,.08);border:1px solid rgba(245,196,81,.28);font-size:11px;color:var(--muted);line-height:1.55}
 
 /* ── rotation order ──────────────────────────────────── */
 .chain{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
@@ -374,6 +397,11 @@ pre.yaml .h{color:#e2e8f5;font-weight:700}
       </div>
       <p class="hint" id="strategyHint" style="margin-top:8px"></p>
 
+      <div class="pool-actions">
+        <button class="btn sm" id="loginAllBtn" title="켜진 계정의 최초 1회 로그인 명령을 한 번에 복사">🔑 전체 로그인 명령</button>
+        <button class="btn sm ghost" id="gsSettingsBtn" title="Gemini CLI 생각 깊이 별칭이 담긴 settings.json 복사">⚙ Gemini 설정</button>
+      </div>
+
       <div class="acct-wrap">
         <div class="acct-group claude" id="claudeGroup"></div>
         <div class="acct-group gemini" id="geminiGroup"></div>
@@ -527,6 +555,19 @@ pre.yaml .h{color:#e2e8f5;font-weight:700}
 
           <p class="hint" style="margin:6px 0 10px">계정 수는 왼쪽 계정 토글에서 바뀝니다. 전략에 따라 Job 구성이 자동으로 달라져요.</p>
 
+          <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin-bottom:4px">인증 방식</div>
+          <div class="seg full sm" id="authSeg">
+            <button data-auth="login">🖥 내 PC 로그인</button>
+            <button data-auth="secret">🔑 OAuth·API Secrets</button>
+          </div>
+          <p class="hint" id="authHint" style="margin-top:6px"></p>
+          <label class="fld" id="runnerRow" style="margin-top:8px">Self-hosted runs-on 라벨 (쉼표 구분)
+            <input type="text" id="runnerLabels" class="mono" spellcheck="false" placeholder="self-hosted, linux" style="font-size:11.5px" />
+          </label>
+          <div class="auth-warn" id="runnerWarn" style="display:none">
+            ⚠️ Self-hosted 러너는 <b>내 PC 권한으로 실제 명령을 실행</b>합니다. 저장소 소유자만 트리거하도록 생성 YAML에 작성자 검사를 넣었고, 러너는 평소 꺼두고 필요할 때만 켜세요.
+          </div>
+
           <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin-bottom:2px">트리거</div>
           <label class="chk"><input type="checkbox" data-trigger="claude" /> 이슈·PR 코멘트 <code>@claude</code></label>
           <label class="chk"><input type="checkbox" data-trigger="gemini" /> 이슈·PR 코멘트 <code>@gemini</code></label>
@@ -538,11 +579,19 @@ pre.yaml .h{color:#e2e8f5;font-weight:700}
           </div>
           <label class="chk"><input type="checkbox" data-trigger="dispatch" /> 수동 실행 <code>workflow_dispatch</code></label>
 
-          <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin:12px 0 4px">모델</div>
+          <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin:12px 0 4px">모델 · 생각 깊이 기본값</div>
           <div class="grid-3" style="grid-template-columns:1fr 1fr">
-            <label class="fld">Claude<input type="text" id="modelClaude" spellcheck="false" class="mono" style="font-size:12px" /></label>
-            <label class="fld">Gemini<input type="text" id="modelGemini" spellcheck="false" class="mono" style="font-size:12px" /></label>
+            <label class="fld">Claude 모델<select id="modelClaude" class="mono" style="font-size:11.5px"></select></label>
+            <label class="fld">Gemini 모델<select id="modelGemini" class="mono" style="font-size:11.5px"></select></label>
           </div>
+          <input type="text" id="modelClaudeCustom" class="mono" spellcheck="false" placeholder="claude-... 직접 입력" style="display:none;margin-top:6px;font-size:11.5px" />
+          <input type="text" id="modelGeminiCustom" class="mono" spellcheck="false" placeholder="gemini-... 직접 입력" style="display:none;margin-top:6px;font-size:11.5px" />
+          <div class="grid-3" style="grid-template-columns:1fr 1fr;margin-top:8px">
+            <label class="fld">Claude 생각 깊이<select id="thinkClaude" style="font-size:11.5px"></select></label>
+            <label class="fld">Gemini 생각 깊이<select id="thinkGemini" style="font-size:11.5px"></select></label>
+          </div>
+          <p class="hint" style="margin-top:6px">여기 값은 기본값이고, 계정 카드에서 계정별로, 작업 카드에서 건별로 덮어쓸 수 있어요.</p>
+          <div id="thinkTable"></div>
 
           <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin:12px 0 4px">실행 한도</div>
           <label class="fld">Job 타임아웃 (분)
@@ -608,6 +657,15 @@ pre.yaml .h{color:#e2e8f5;font-weight:700}
         </select>
       </label>
     </div>
+    <div class="grid-3" style="grid-template-columns:1fr 1fr">
+      <label class="fld">모델 (이 카드만)
+        <select id="mModel"></select>
+      </label>
+      <label class="fld">생각 깊이 (이 카드만)
+        <select id="mThink"></select>
+      </label>
+    </div>
+    <input type="text" id="mModelCustom" class="mono" spellcheck="false" placeholder="모델 ID 직접 입력 (예: claude-opus-4-5)" style="display:none;margin-top:6px;font-size:12px" />
     <p class="help-q" id="mHint"></p>
     <div class="modal-foot">
       <button class="btn ghost" id="mCancel">취소</button>
@@ -649,17 +707,62 @@ const COLS = [
 ];
 const STATUS_LABEL = {active:"활성", cool:"한도·쿨다운", idle:"대기"};
 const STRATEGY_NAME = {rotate:"한도 로테이션", role:"역할 분담", hybrid:"하이브리드"};
+const AUTH_NAME = {login:"내 PC 로그인 (Self-hosted)", secret:"OAuth·API Secrets"};
+
+/* ── 모델 프리셋 (표시명 + 실제 모델 ID) ───────────────── */
+const MODEL_PRESETS = {
+  claude: [
+    {id:"claude-opus-4-5",    name:"Opus 4.5"},
+    {id:"claude-sonnet-4-5",  name:"Sonnet 4.5"},
+    {id:"claude-haiku-4-5",   name:"Haiku 4.5"},
+    {id:"claude-opus-4-1",    name:"Opus 4.1"},
+    {id:"claude-sonnet-4",    name:"Sonnet 4"}
+  ],
+  gemini: [
+    {id:"gemini-2.5-pro",         name:"Gemini 2.5 Pro"},
+    {id:"gemini-2.5-flash",       name:"Gemini 2.5 Flash"},
+    {id:"gemini-2.5-flash-lite",  name:"Gemini 2.5 Flash-Lite"},
+    {id:"gemini-3-pro-preview",   name:"Gemini 3 Pro (Preview)"},
+    {id:"gemini-3-flash-preview", name:"Gemini 3 Flash (Preview)"}
+  ]
+};
+/* Gemini settings.json 별칭에 쓰는 모델 키 */
+const GEMINI_MKEY = {
+  "gemini-2.5-pro":"pro25", "gemini-2.5-flash":"flash25", "gemini-2.5-flash-lite":"lite25",
+  "gemini-3-pro-preview":"pro3", "gemini-3-flash-preview":"flash3"
+};
+
+/* ── 생각 깊이 5단계: 단계별 실제 전달값 ───────────────── */
+/*  claude  : Claude API thinking.budget_tokens (0 = 사고 끔)
+    gemini  : Gemini API thinkingConfig.thinkingBudget (2.5)
+    g3      : Gemini 3 thinkingLevel
+    effort  : Claude Code CLI 의 CLAUDE_CODE_EFFORT_LEVEL     */
+const THINK_LEVELS = [
+  {id:"off",    name:"끄기", en:"Off",    claude:0,     gemini:0,     g3:"LOW",    effort:""},
+  {id:"low",    name:"낮음", en:"Low",    claude:2048,  gemini:1024,  g3:"LOW",    effort:"low"},
+  {id:"medium", name:"보통", en:"Medium", claude:8192,  gemini:4096,  g3:"MEDIUM", effort:"medium"},
+  {id:"high",   name:"높음", en:"High",   claude:16384, gemini:16384, g3:"HIGH",   effort:"high"},
+  {id:"max",    name:"최대", en:"Max",    claude:32000, gemini:24576, g3:"HIGH",   effort:"max"}
+];
+const THINK_IDS = THINK_LEVELS.map(t => t.id);
+const THINK_NAME = Object.fromEntries(THINK_LEVELS.map(t => [t.id, t.name]));
 
 function defaultState(){
   const acct = (fam, n, on, usage) => ({
     id: fam[0] + n, label: (fam === "claude" ? "Claude #" : "Gemini #") + n,
+    alias: "",
+    profile: (fam === "claude" ? "~/.claude-" : "~/.gemini-") + n,
+    model: "", thinking: "",
     enabled: on, status: on ? "active" : "idle", usage: on ? usage : 0, cooldownUntil: 0
   });
   return {
-    v: 1,
+    v: 2,
     mode: "dashboard",
     theme: "dark",
     strategy: "rotate",
+    authMode: "login",
+    runnerLabels: "self-hosted",
+    allowedUsers: "",
     repo: {owner:"everywon1202-collab", name:"event-dashboard", pat:"", branch:"main"},
     accounts: {
       claude: [acct("claude",1,true,40), acct("claude",2,true,15), acct("claude",3,false,0)],
@@ -673,6 +776,7 @@ function defaultState(){
     ],
     triggers: {claude:true, gemini:true, collab:true, label:true, labelName:"ai-collab", dispatch:true},
     models: {claude:"claude-sonnet-4-5", gemini:"gemini-2.5-pro"},
+    thinking: {claude:"medium", gemini:"medium"},
     timeout:30,
     log: []
   };
@@ -683,19 +787,35 @@ let state = defaultState();
 function mergeState(saved){
   if (!saved || typeof saved !== "object") return;
   const base = defaultState();
-  state = Object.assign(base, saved);
-  state.repo = Object.assign(base.repo, saved.repo || {});
-  state.triggers = Object.assign(base.triggers, saved.triggers || {});
-  state.models = Object.assign(base.models, saved.models || {});
-  state.roles = Object.assign(base.roles, saved.roles || {});
+  state = Object.assign({}, base, saved);
+  state.repo = Object.assign({}, base.repo, saved.repo || {});
+  state.triggers = Object.assign({}, base.triggers, saved.triggers || {});
+  state.models = Object.assign({}, base.models, saved.models || {});
+  state.thinking = Object.assign({}, base.thinking, saved.thinking || {});
+  state.roles = Object.assign({}, base.roles, saved.roles || {});
+  if (state.authMode !== "login" && state.authMode !== "secret") state.authMode = "login";
+  if (!state.runnerLabels) state.runnerLabels = "self-hosted";
   ["claude","gemini"].forEach(fam => {
+    if (THINK_IDS.indexOf(state.thinking[fam]) < 0) state.thinking[fam] = "medium";
+    if (!state.models[fam]) state.models[fam] = base.models[fam];
     const src = (saved.accounts && saved.accounts[fam]) || [];
     state.accounts[fam] = base.accounts[fam].map(def => {
       const s = src.find(a => a && a.id === def.id) || {};
-      return Object.assign({}, def, s);
+      const a = Object.assign({}, def, s);
+      /* 예전 저장값(모델·생각·프로필 필드 없음)은 기본값으로 메꿈 */
+      if (!a.profile || typeof a.profile !== "string") a.profile = def.profile;
+      if (typeof a.alias !== "string") a.alias = "";
+      if (typeof a.model !== "string") a.model = "";
+      if (THINK_IDS.indexOf(a.thinking) < 0) a.thinking = "";
+      return a;
     });
   });
   if (!Array.isArray(state.board)) state.board = base.board;
+  state.board = state.board.filter(c => c && typeof c === "object").map(c => {
+    if (typeof c.model !== "string") c.model = "";
+    if (THINK_IDS.indexOf(c.thinking) < 0) c.thinking = "";
+    return c;
+  });
   if (!Array.isArray(state.log)) state.log = [];
 }
 
@@ -787,6 +907,111 @@ function secretNameOf(a){
   return (a.id[0] === "c" ? "ANTHROPIC_API_KEY_" : "GEMINI_API_KEY_") + n;
 }
 function shortLabel(a){ return (a.id[0] === "c" ? "C#" : "G#") + (secretPlan()[familyOf(a.id)][a.id] || "–"); }
+
+/* ── 모델 · 생각 깊이 · 로그인 프로필 ─────────────────── */
+function presetName(id){
+  for (const fam of ["claude","gemini"]){
+    const p = MODEL_PRESETS[fam].find(x => x.id === id);
+    if (p) return p.name;
+  }
+  return id || "";
+}
+function modelFamily(id){
+  if (!id) return "";
+  if (/^claude/.test(id)) return "claude";
+  if (/^gemini/.test(id)) return "gemini";
+  return "";
+}
+function defaultProfile(a){ return (familyOf(a.id) === "claude" ? "~/.claude-" : "~/.gemini-") + a.id.slice(1); }
+function profileOf(a){ return (a && a.profile) ? a.profile : defaultProfile(a); }
+function acctModel(a){
+  const fam = familyOf(a.id);
+  return (a && a.model) || state.models[fam] || MODEL_PRESETS[fam][0].id;
+}
+function acctThink(a){
+  const fam = familyOf(a.id);
+  const lv = (a && a.thinking) || state.thinking[fam] || "medium";
+  return THINK_IDS.indexOf(lv) >= 0 ? lv : "medium";
+}
+function levelOf(id){ return THINK_LEVELS.find(t => t.id === id) || THINK_LEVELS[2]; }
+function geminiIs3(model){ return /^gemini-3/.test(String(model || "")); }
+function geminiBudget(model, level){
+  const t = levelOf(level);
+  let b = t.gemini;
+  if (b === 0 && /2\.5-pro/.test(String(model || ""))) b = 128; /* 2.5 Pro 최소값 */
+  return b;
+}
+function geminiLevel(model, level){
+  const t = levelOf(level);
+  if (geminiIs3(model) && /-pro/.test(String(model))) return (level === "off" || level === "low") ? "LOW" : "HIGH";
+  return t.g3;
+}
+function geminiAlias(model, level){
+  const key = GEMINI_MKEY[model];
+  return key ? "collab-" + key + "-" + level : "";
+}
+function thinkDetail(fam, level, model){
+  const t = levelOf(level);
+  if (fam === "claude") return t.claude ? "thinking.budget_tokens " + t.claude.toLocaleString() : "thinking 미사용(끔)";
+  if (geminiIs3(model)) return "thinkingLevel " + geminiLevel(model, level);
+  return "thinkingBudget " + geminiBudget(model, level).toLocaleString();
+}
+function thinkDetailCli(fam, level, model){
+  if (fam === "claude") return level === "off" ? "MAX_THINKING_TOKENS=0 (사고 끔)" : "CLAUDE_CODE_EFFORT_LEVEL=" + levelOf(level).effort;
+  return thinkDetail(fam, level, model);
+}
+/* Gemini CLI 는 생각 깊이 플래그가 없어 settings.json 별칭으로 넘깁니다. */
+function geminiSettings(){
+  const aliases = {};
+  MODEL_PRESETS.gemini.forEach(p => {
+    const key = GEMINI_MKEY[p.id];
+    if (!key) return;
+    THINK_LEVELS.forEach(t => {
+      const cfg = { includeThoughts: true };
+      if (geminiIs3(p.id)) cfg.thinkingLevel = geminiLevel(p.id, t.id);
+      else cfg.thinkingBudget = geminiBudget(p.id, t.id);
+      aliases["collab-" + key + "-" + t.id] = {
+        "extends": "chat-base",
+        "modelConfig": { "model": p.id, "generateContentConfig": { "thinkingConfig": cfg } }
+      };
+    });
+  });
+  return JSON.stringify({ modelConfigs: { customAliases: aliases } }, null, 2);
+}
+function geminiSettingsPath(a){ return profileOf(a) + "/.gemini/settings.json"; }
+function loginCmd(a){
+  const fam = familyOf(a.id), p = profileOf(a);
+  return fam === "claude"
+    ? ["# " + a.label + " 최초 1회 로그인 — 붙여넣고 브라우저에서 이 계정으로 로그인",
+       "CLAUDE_CONFIG_DIR=" + p + " claude",
+       "# 확인: CLAUDE_CONFIG_DIR=" + p + " claude auth status"].join("\n")
+    : ["# " + a.label + " 최초 1회 로그인 — 실행 후 /auth → Sign in with Google",
+       "GEMINI_CLI_HOME=" + p + " gemini",
+       "# 확인: GEMINI_CLI_HOME=" + p + " gemini -p \"ping\""].join("\n");
+}
+function thinkOptions(a, fam){
+  const model = a ? acctModel(a) : state.models[fam];
+  const cur = a ? a.thinking : state.thinking[fam];
+  const head = a
+    ? '<option value=""' + (cur ? "" : " selected") + '>기본값 · ' + THINK_NAME[state.thinking[fam]] + '</option>'
+    : "";
+  return head + THINK_LEVELS.map(t => {
+    const v = fam === "claude"
+      ? (t.claude ? t.claude.toLocaleString() : "0")
+      : (geminiIs3(model) ? geminiLevel(model, t.id) : geminiBudget(model, t.id).toLocaleString());
+    return '<option value="' + t.id + '"' + (cur === t.id ? " selected" : "") + '>' + t.name + " · " + v + "</option>";
+  }).join("");
+}
+function modelOptions(a, fam){
+  const cur = a ? (a.model || "") : state.models[fam];
+  const known = MODEL_PRESETS[fam].some(p => p.id === cur);
+  const head = a
+    ? '<option value=""' + (cur ? "" : " selected") + '>기본값 · ' + presetName(state.models[fam]) + '</option>'
+    : "";
+  return head + MODEL_PRESETS[fam].map(p =>
+    '<option value="' + p.id + '"' + (cur === p.id ? " selected" : "") + '>' + esc(p.name) + "</option>"
+  ).join("") + '<option value="__custom__"' + (cur && !known ? " selected" : "") + '>직접 입력 (Custom ID)</option>';
+}
 function primaryFor(roleId){
   const id = state.roles[roleId];
   const a = id ? acctById(id) : null;
@@ -801,8 +1026,9 @@ function coolLeft(a){ return a.status === "cool" && a.cooldownUntil ? a.cooldown
 /* ── 계정 카드 렌더 ───────────────────────────────────── */
 function acctCard(a){
   const fam = familyOf(a.id);
-  const plan = secretPlan();
-  const badge = a.enabled ? (fam === "claude" ? "ANTHROPIC_API_KEY_" : "GEMINI_API_KEY_") + plan[fam][a.id] : "꺼짐";
+  const secretMode = state.authMode === "secret";
+  const slot = secretPlan()[fam][a.id] || "–";
+  const secretLabel = fam === "claude" ? ("OAUTH/KEY #" + slot) : ("KEY #" + slot);
   const dot = a.enabled ? (a.status === "active" ? "active" : a.status === "cool" ? "cool" : "idle") : "idle";
   const famColor = a.usage >= 85 ? "var(--danger)" : (fam === "claude" ? "var(--claude)" : "var(--gemini)");
   const track = "background:linear-gradient(90deg," + famColor + " " + a.usage + "%,var(--line) " + a.usage + "%)";
@@ -810,7 +1036,7 @@ function acctCard(a){
       '<label class="switch"><input type="checkbox" data-act="toggle"' + (a.enabled ? " checked" : "") + ' /><span></span></label>' +
       '<span class="status-dot ' + dot + '"></span>' +
       '<span class="acct-name">' + esc(a.label) + '</span>' +
-      '<span class="secret" title="GitHub Secret 이름">' + badge + "</span>" +
+      '<span class="secret" title="' + (secretMode ? "GitHub Secret 번호" : "로그인 계정 / 프로필") + '">' + esc(secretMode ? secretLabel : (a.alias || profileOf(a))) + "</span>" +
     "</div>";
   if (!a.enabled){
     return '<div class="acct ' + fam + ' off" data-id="' + a.id + '">' + head + "</div>";
@@ -819,8 +1045,25 @@ function acctCard(a){
     ROLES.map(r => '<option value="' + r.id + '"' + (state.roles[r.id] === a.id ? " selected" : "") + ">" + esc(r.name) + "</option>")
   ).join("");
   const left = coolLeft(a);
+  const isCustomModel = !!a.model && !MODEL_PRESETS[fam].some(p => p.id === a.model);
+  const loginRows = secretMode ? "" :
+    '<div class="acct-login">' +
+      '<input type="text" data-act="alias" value="' + esc(a.alias || "") + '" spellcheck="false" placeholder="로그인 계정 메모 (예: ' + (fam === "claude" ? "sub1@naver.com" : "sub-1@gmail.com") + ')" />' +
+      '<button class="btn sm" data-act="login" title="최초 1회 로그인 명령 복사">🔑</button>' +
+    "</div>";
+  const profRow = secretMode ? "" :
+    '<div class="acct-prof">' +
+      '<input type="text" data-act="profile" value="' + esc(profileOf(a)) + '" spellcheck="false" title="로그인 프로필 폴더" />' +
+      (fam === "gemini" ? '<button class="btn sm ghost" data-act="gsettings" title="settings.json (생각 깊이 별칭) 복사">⚙</button>' : "") +
+    "</div>";
   return '<div class="acct ' + fam + '" data-id="' + a.id + '">' +
-    head +
+    head + loginRows +
+    '<div class="acct-cfg">' +
+      '<select class="mdl" data-act="model" title="모델">' + modelOptions(a, fam) + "</select>" +
+      '<select class="thk" data-act="think" title="생각 깊이">' + thinkOptions(a, fam) + "</select>" +
+    "</div>" +
+    '<input type="text" data-act="modeltxt" class="mono" value="' + esc(isCustomModel ? a.model : "") + '" spellcheck="false" placeholder="모델 ID 직접 입력" style="display:' + (isCustomModel ? "" : "none") + ';margin-top:5px;font-size:10px;padding:3px 7px;border-radius:7px;width:100%" />' +
+    profRow +
     '<div class="acct-mid">' +
       '<input type="range" min="0" max="100" step="5" value="' + a.usage + '" data-act="usage" style="' + track + '" />' +
       '<span class="pct" data-pct>' + a.usage + '%</span>' +
@@ -931,7 +1174,11 @@ function bindAccountGroup(sel){
         renderAccounts(); renderOrder(); renderMatrix();
       }
       renderOrder(); save();
+      return;
     }
+    if (act === "alias"){ a.alias = e.target.value.trim(); save(); return; }
+    if (act === "profile"){ a.profile = e.target.value.trim() || defaultProfile(a); save(); return; }
+    if (act === "modeltxt"){ a.model = e.target.value.trim(); save(); buildYaml(); }
   });
   box.addEventListener("change", e => {
     const card = e.target.closest(".acct"); if (!card) return;
@@ -955,9 +1202,42 @@ function bindAccountGroup(sel){
       if (rid) state.roles[rid] = a.id;
       logMsg(a.label + (rid ? " 역할 → " + ROLE_NAME[rid] : " 역할 해제"));
       renderAllAccounts(); save();
+    } else if (act === "model"){
+      const v = e.target.value;
+      if (v === "__custom__"){
+        a.model = "";
+        const inp = card.querySelector('[data-act="modeltxt"]');
+        if (inp){ inp.style.display = ""; inp.value = ""; inp.focus(); }
+      } else {
+        a.model = v;
+        const inp = card.querySelector('[data-act="modeltxt"]');
+        if (inp) inp.style.display = "none";
+        logMsg(a.label + " 모델 → " + (v ? presetName(v) : "기본값 " + presetName(state.models[familyOf(a.id)])));
+        renderAccounts(); renderMatrix(); buildYaml(); buildGuide();
+      }
+      save();
+    } else if (act === "think"){
+      a.thinking = e.target.value;
+      logMsg(a.label + " 생각 깊이 → " + (a.thinking ? THINK_NAME[a.thinking] : "기본값 " + THINK_NAME[state.thinking[familyOf(a.id)]]));
+      renderAccounts(); buildYaml(); save();
     }
   });
   box.addEventListener("click", e => {
+    const lb = e.target.closest('[data-act="login"]');
+    if (lb){
+      const card = e.target.closest(".acct"); if (!card) return;
+      const a = acctById(card.getAttribute("data-id")); if (!a) return;
+      copyText(loginCmd(a), a.label + " 로그인 명령을 복사했어요 (한 번만)");
+      return;
+    }
+    const gb = e.target.closest('[data-act="gsettings"]');
+    if (gb){
+      const card = e.target.closest(".acct"); if (!card) return;
+      const a = acctById(card.getAttribute("data-id")); if (!a) return;
+      copyText(geminiSettings(), "settings.json 복사 — " + geminiSettingsPath(a) + " 에 붙여넣으세요");
+      logMsg("Gemini settings.json 복사 (" + profileOf(a) + ")");
+      return;
+    }
     const btn = e.target.closest('[data-act="cool"]'); if (!btn) return;
     const card = e.target.closest(".acct"); if (!card) return;
     const a = acctById(card.getAttribute("data-id")); if (!a || !a.enabled) return;
@@ -969,7 +1249,7 @@ function bindAccountGroup(sel){
     toast(a.label + "을(를) " + min + "분 쿨다운으로 돌렸어요", "info");
   });
 }
-function renderAllAccounts(){ renderAccounts(); renderOrder(); renderMatrix(); renderStrategyHint(); renderGenSummary(); buildYaml(); }
+function renderAllAccounts(){ renderAccounts(); renderOrder(); renderMatrix(); renderStrategyHint(); renderGenSummary(); buildYaml(); buildGuide(); }
 
 function renderStrategyHint(){
   const hints = {
@@ -998,6 +1278,12 @@ function ownerOptions(sel){
   return opts.join("");
 }
 function shellQuote(s){ return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
+function cardModelFor(c, fam){
+  const m = c && c.model;
+  if (!m) return "";
+  const mf = modelFamily(m);
+  return (mf && mf !== fam) ? "" : m;
+}
 function cliFor(c){
   const prompt = (c.prompt || c.title || "").trim();
   const fams = c.owner === "both" ? ["claude","gemini"] : [(c.owner && acctById(c.owner)) ? familyOf(c.owner) : "claude"];
@@ -1005,11 +1291,23 @@ function cliFor(c){
   fams.forEach(fam => {
     const a = (c.owner && c.owner !== "both") ? acctById(c.owner) : famOrder(fam)[0];
     if (!a){ out.push("# " + (fam === "claude" ? "Claude" : "Gemini") + " — 켜진 계정 없음"); return; }
-    const plan = secretPlan();
-    const ord = plan[fam][a.id];
-    const keyName = (fam === "claude" ? "ANTHROPIC_API_KEY_" : "GEMINI_API_KEY_") + ord;
-    out.push("# " + a.label + " · " + (fam === "claude" ? "Claude Code" : "Gemini CLI") + " · 키 " + keyName);
-    out.push(fam === "claude" ? "claude -p " + shellQuote(prompt) : "gemini -p " + shellQuote(prompt));
+    const model = cardModelFor(c, fam) || acctModel(a);
+    const lv = (c.thinking && THINK_IDS.indexOf(c.thinking) >= 0) ? c.thinking : acctThink(a);
+    out.push("# " + a.label + " · " + presetName(model) + " · 생각 " + THINK_NAME[lv] + (a.alias ? " (" + a.alias + ")" : ""));
+    if (fam === "claude"){
+      const env = lv === "off" ? "MAX_THINKING_TOKENS=0 " : "CLAUDE_CODE_EFFORT_LEVEL=" + levelOf(lv).effort + " ";
+      out.push(env + "CLAUDE_CONFIG_DIR=" + profileOf(a) + " claude --model " + model + " -p " + shellQuote(prompt));
+    } else {
+      const alias = geminiAlias(model, lv);
+      if (alias && model === acctModel(a)){
+        out.push("GEMINI_CLI_HOME=" + profileOf(a) + " gemini -m " + alias + " -p " + shellQuote(prompt));
+        out.push("#   " + alias + " = " + model + " · " + thinkDetail(fam, lv, model));
+        out.push("#   최초 1회: 계정 카드 ⚙ → " + geminiSettingsPath(a) + " 에 붙여넣기");
+      } else {
+        out.push("GEMINI_CLI_HOME=" + profileOf(a) + " gemini -m " + model + " -p " + shellQuote(prompt));
+        out.push("#   프로필 모델과 달라 생각 깊이 별칭 없이 실행 — " + thinkDetail(fam, lv, model));
+      }
+    }
     out.push("");
   });
   return out.join("\n").trim();
@@ -1022,6 +1320,8 @@ function handoffFor(c){
     "## 작업: " + c.title,
     "",
     "- 담당: " + o.name,
+    "- 모델: " + (c.model ? presetName(c.model) + " (" + c.model + ")" : "담당 계정 설정 따름"),
+    "- 생각 깊이: " + (c.thinking ? THINK_NAME[c.thinking] : "담당 계정 설정 따름"),
     "- 단계: " + col,
     "- 우선순위: " + pr,
     "- 생성: " + new Date(c.createdAt || Date.now()).toLocaleString("ko-KR"),
@@ -1050,6 +1350,7 @@ function cardHTML(c){
     '<div class="kf">' +
       '<span class="owner" style="color:' + (o.fam === "claude" ? "var(--claude)" : o.fam === "gemini" ? "var(--gemini)" : "var(--accent)") + '">● ' + esc(o.name) + "</span>" +
       '<span class="prio ' + prioCls + '">' + prioTxt + "</span>" +
+      (c.model || c.thinking ? '<span class="cfgchip" title="카드 오버라이드">' + esc([c.model ? presetName(c.model) : "", c.thinking ? "깊이 " + THINK_NAME[c.thinking] : ""].filter(Boolean).join(" · ")) + "</span>" : "") +
       '<span class="spacer"></span>' +
       '<div class="ops">' +
         (idx > 0 ? '<button class="op" data-op="prev" title="이전 단계로">←</button>' : "") +
@@ -1124,6 +1425,35 @@ function bindBoard(){
 
 /* ── 카드 모달 ────────────────────────────────────────── */
 let editingId = null;
+function cardModelOptionsHTML(owner, sel){
+  const fams = (owner === "both" || !owner) ? ["claude","gemini"] : [familyOf(owner)];
+  let html = '<option value="">담당 계정 설정 따름</option>';
+  fams.forEach(fam => {
+    const items = MODEL_PRESETS[fam].map(p =>
+      '<option value="' + p.id + '"' + (sel === p.id ? " selected" : "") + ">" + esc(p.name) + "</option>"
+    ).join("");
+    html += fams.length > 1
+      ? '<optgroup label="' + (fam === "claude" ? "Claude" : "Gemini") + '">' + items + "</optgroup>"
+      : items;
+  });
+  const all = MODEL_PRESETS.claude.concat(MODEL_PRESETS.gemini);
+  const known = !!sel && all.some(p => p.id === sel);
+  html += '<option value="__custom__"' + (sel && !known ? " selected" : "") + ">직접 입력 (Custom ID)</option>";
+  return html;
+}
+function cardThinkOptionsHTML(sel){
+  return '<option value="">담당 계정 설정 따름</option>' + THINK_LEVELS.map(t =>
+    '<option value="' + t.id + '"' + (sel === t.id ? " selected" : "") + ">" + t.name + " (" + t.en + ") · Claude " + (t.claude ? t.claude.toLocaleString() : "0") + " / Gemini " + (t.gemini ? t.gemini.toLocaleString() : "0") + "</option>"
+  ).join("");
+}
+function fillCardModel(owner, sel){
+  const all = MODEL_PRESETS.claude.concat(MODEL_PRESETS.gemini);
+  const isCustom = !!sel && !all.some(p => p.id === sel);
+  $("#mModel").innerHTML = cardModelOptionsHTML(owner, sel);
+  if (isCustom) $("#mModel").value = "__custom__";
+  const inp = $("#mModelCustom");
+  if (inp){ inp.style.display = isCustom ? "" : "none"; inp.value = isCustom ? sel : ""; }
+}
 function openCardModal(id){
   editingId = id;
   const c = id ? state.board.find(x => x.id === id) : null;
@@ -1133,7 +1463,9 @@ function openCardModal(id){
   $("#mOwner").innerHTML = ownerOptions(c ? c.owner : "");
   $("#mPrio").value = c ? (c.prio || "mid") : "mid";
   $("#mCol").value = c ? c.col : "backlog";
-  $("#mHint").textContent = "담당 계정을 고르면 ⌘ CLI 명령과 ⧉ 프롬프트에 그 계정 기준으로 만들어집니다.";
+  fillCardModel(c ? c.owner : "", c ? (c.model || "") : "");
+  $("#mThink").innerHTML = cardThinkOptionsHTML(c ? (c.thinking || "") : "");
+  $("#mHint").textContent = "담당 계정을 고르면 ⌘ CLI 명령에 그 계정의 로그인 프로필·모델·생각 깊이가 반영됩니다. 여기서 고른 모델·깊이는 이 카드만 덮어씁니다.";
   $("#overlay").classList.add("on");
   setTimeout(() => $("#mTitle").focus(), 40);
 }
@@ -1146,7 +1478,9 @@ function saveCard(){
     prompt: $("#mPrompt").value.trim(),
     owner: $("#mOwner").value,
     prio: $("#mPrio").value,
-    col: $("#mCol").value
+    col: $("#mCol").value,
+    model: $("#mModel").value === "__custom__" ? $("#mModelCustom").value.trim() : $("#mModel").value,
+    thinking: $("#mThink").value
   };
   const isEdit = !!editingId;
   if (isEdit){
@@ -1290,9 +1624,17 @@ label_want = os.environ.get("AI_LABEL", "ai-collab")
 role_map = json.loads(os.environ.get("AI_ROLE_MAP") or "{}")
 all_roles = json.loads(os.environ.get("AI_ROLES") or '["all"]')
 body = (ev.get("comment") or {}).get("body") or ""
+actor = (((ev.get("comment") or {}).get("user") or {}).get("login")
+         or ((ev.get("issue") or {}).get("user") or {}).get("login")
+         or (ev.get("sender") or {}).get("login") or "")
+repo = os.environ.get("GITHUB_REPOSITORY", "")
+owner = repo.split("/")[0] if repo else ""
+allowed = [x.strip() for x in (os.environ.get("AI_ALLOWED_USERS") or owner).split(",") if x.strip()]
 
 trigger = ""
-if name == "workflow_dispatch":
+if actor and allowed and actor not in allowed:
+    trigger = ""        # 허용된 사용자만 실행 (내 PC 러너 보호)
+elif name == "workflow_dispatch":
     trigger = (ev.get("inputs") or {}).get("agent") or "collab"
 elif name == "issues" and ((ev.get("label") or {}).get("name") == label_want):
     trigger = "collab"
@@ -1321,7 +1663,7 @@ with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
         f.write(line + "\n")
 print("route:", lines, flush=True)`;
 
-const PY_DRIVER = String.raw`import json, os, sys, time, urllib.request, urllib.error
+const PY_CLI = String.raw`import json, os, shutil, subprocess, sys, urllib.request, urllib.error
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "")
 TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
@@ -1329,11 +1671,17 @@ RUN_ID = os.environ.get("GITHUB_RUN_ID", "")
 ROLE = os.environ.get("AI_ROLE", "all")
 TRIGGER = os.environ.get("AI_TRIGGER", "collab")
 STRATEGY = os.environ.get("AI_STRATEGY", "rotate")
+AUTH = os.environ.get("AI_AUTH", "login")
 ROLE_MAP = json.loads(os.environ.get("AI_ROLE_MAP") or "{}")
 ROLE_LABELS = json.loads(os.environ.get("AI_ROLE_LABELS") or "{}")
-CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-5")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+ACCOUNTS = json.loads(os.environ.get("AI_ACCOUNTS") or "{}")
+CLI_TIMEOUT = int(os.environ.get("AI_CLI_TIMEOUT") or "900")
 NAME = {"claude": "Claude", "gemini": "Gemini"}
+EFFORT = {"low": "low", "medium": "medium", "high": "high", "max": "max"}
+THINK = {"off": "끄기", "low": "낮음", "medium": "보통", "high": "높음", "max": "최대"}
+GM_KEY = {"gemini-2.5-pro": "pro25", "gemini-2.5-flash": "flash25",
+          "gemini-2.5-flash-lite": "lite25", "gemini-3-pro-preview": "pro3",
+          "gemini-3-flash-preview": "flash3"}
 
 ROLE_PROMPTS = {
     "all": "너는 Claude와 Gemini가 함께 쓰는 협업 에이전트다. 맡은 요청을 끝까지 정리해 실행 가능한 결론을 낸다.",
@@ -1345,11 +1693,11 @@ ROLE_PROMPTS = {
     "security": "너는 보안과 엣지케이스 담당이다. 입력 검증, 권한, 비밀 노출, 경계 조건을 점검한다.",
 }
 RULES = ("팀 규칙: 한국어로 답한다. 결론을 먼저 쓰고 근거와 파일 경로를 붙인다. "
-         "확실하지 않은 것은 '추정'이라고 표시한다. 이 실행은 저장소를 수정하지 못하므로(읽기 전용) "
+         "확실하지 않은 것은 '추정'이라고 표시한다. 이 실행은 저장소를 수정하지 않는다(읽기 전용). "
          "필요한 변경은 담당자가 그대로 실행할 수 있는 지시나 패치 형태로 남긴다. 600단어 이내로 쓴다.")
 
 
-def _req(method, url, payload, headers, timeout=180):
+def _req(method, url, payload, headers, timeout=120):
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
@@ -1367,11 +1715,7 @@ def _req(method, url, payload, headers, timeout=180):
 
 def short(x, n=180):
     if isinstance(x, dict):
-        err = x.get("error")
-        if isinstance(err, dict):
-            msg = err.get("message") or json.dumps(err, ensure_ascii=False)
-        else:
-            msg = x.get("message") or json.dumps(x, ensure_ascii=False)
+        msg = x.get("message") or json.dumps(x, ensure_ascii=False)
     else:
         msg = x
     return str(msg).replace("\n", " ")[:n]
@@ -1418,54 +1762,77 @@ def build_task(ev):
     return "\n\n".join(parts)
 
 
-def key_list(prefix):
-    out = {}
-    for i in range(1, 10):
-        v = os.environ.get("%s_%d" % (prefix, i))
-        if v and v.strip():
-            out[i] = v.strip()
+def accounts_for(fam, order):
+    ids = order.get(fam) if isinstance(order, dict) else (order or [])
+    out = []
+    for aid in ids:
+        a = ACCOUNTS.get(str(aid))
+        if a and a.get("family") == fam:
+            out.append((str(aid), a))
+    if not out:
+        out = [(k, v) for k, v in ACCOUNTS.items() if v.get("family") == fam]
     return out
 
 
-def resolve_chain(fam, order):
-    avail = key_list("ANTHROPIC_API_KEY" if fam == "claude" else "GEMINI_API_KEY")
-    if isinstance(order, dict):
-        want = order.get(fam) or []
-    else:
-        want = order or []
-    want = [int(x) for x in want if str(x).isdigit()]
-    seq = [i for i in want if i in avail]
-    if STRATEGY != "role":
-        seq += [i for i in sorted(avail) if i not in seq]
-    if not seq and avail:
-        seq = sorted(avail)
-    return [(i, avail[i]) for i in seq]
+def gemini_alias(model, level):
+    k = GM_KEY.get(model)
+    return ("collab-%s-%s" % (k, level)) if k else ""
 
 
-def call(fam, key, system, user):
+def env_for(fam, acct):
+    env = dict(os.environ)
+    n = int(acct.get("slot") or 0)
+    if AUTH == "login":
+        prof = os.path.expanduser(acct.get("profile") or "")
+        if fam == "claude":
+            env["CLAUDE_CONFIG_DIR"] = prof
+        else:
+            env["GEMINI_CLI_HOME"] = prof
+        return env, ""
     if fam == "claude":
-        code, res = _req("POST", "https://api.anthropic.com/v1/messages",
-                         {"model": CLAUDE_MODEL, "max_tokens": 3000, "system": system,
-                          "messages": [{"role": "user", "content": user}]},
-                         {"x-api-key": key, "anthropic-version": "2023-06-01",
-                          "content-type": "application/json"})
-        if code == 200:
-            txt = "".join(p.get("text", "") for p in (res.get("content") or []))
-            return True, txt
-        return False, res
-    code, res = _req("POST",
-                     "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % GEMINI_MODEL,
-                     {"system_instruction": {"parts": [{"text": system}]},
-                      "contents": [{"role": "user", "parts": [{"text": user}]}],
-                      "generationConfig": {"maxOutputTokens": 3000}},
-                     {"x-goog-api-key": key, "content-type": "application/json"})
-    if code == 200:
-        cands = res.get("candidates") or []
-        if not cands:
-            return False, "빈 응답 (안전 필터 또는 토큰 한도 가능성)"
-        parts = ((cands[0].get("content") or {}).get("parts") or [])
-        return True, "".join(p.get("text", "") for p in parts)
-    return False, res
+        tok = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN_%d" % n)
+        if tok:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = tok
+            return env, ""
+        key = os.environ.get("ANTHROPIC_API_KEY_%d" % n)
+        if key:
+            env["ANTHROPIC_API_KEY"] = key
+            return env, ""
+        return env, "시크릿 없음 (CLAUDE_CODE_OAUTH_TOKEN_%d / ANTHROPIC_API_KEY_%d)" % (n, n)
+    key = os.environ.get("GEMINI_API_KEY_%d" % n)
+    if key:
+        env["GEMINI_API_KEY"] = key
+        return env, ""
+    return env, "시크릿 없음 (GEMINI_API_KEY_%d)" % n
+
+
+def run_cli(fam, acct, env, prompt, level, model, use_alias=True):
+    if fam == "claude":
+        exe = shutil.which("claude")
+        if not exe:
+            return False, "claude CLI 를 찾을 수 없습니다 - 러너 PC에 설치와 로그인이 필요합니다"
+        if level == "off":
+            env["MAX_THINKING_TOKENS"] = "0"
+            env.pop("CLAUDE_CODE_EFFORT_LEVEL", None)
+        else:
+            env["CLAUDE_CODE_EFFORT_LEVEL"] = EFFORT.get(level, "high")
+            env.pop("MAX_THINKING_TOKENS", None)
+        cmd = [exe, "--model", model, "-p", prompt]
+    else:
+        exe = shutil.which("gemini")
+        if not exe:
+            return False, "gemini CLI 를 찾을 수 없습니다 - 러너 PC에 설치와 로그인이 필요합니다"
+        alias = gemini_alias(model, level) if use_alias else ""
+        cmd = [exe, "-m", alias or model, "-p", prompt]
+    try:
+        p = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=CLI_TIMEOUT)
+    except Exception as ex:
+        return False, str(ex)[:300]
+    out = (p.stdout or "").strip()
+    if p.returncode == 0 and out:
+        return True, out
+    err = ((p.stderr or "").strip() + "\n" + out).strip()
+    return False, (err or ("exit %s" % p.returncode))[:300]
 
 
 def comment(num, body):
@@ -1499,40 +1866,54 @@ def main():
     task = build_task(ev)
     spec = ROLE_MAP.get(ROLE) or {"family": "both", "order": {}}
     fam = spec.get("family", "both")
-    order = spec.get("order") or []
+    order = spec.get("order") or {}
     fams = ["claude", "gemini"] if fam == "both" else [fam]
     if fam == "both" and TRIGGER in ("claude", "gemini"):
         fams = [TRIGGER]
     role_label = ROLE_LABELS.get(ROLE, ROLE)
-    system = "%s\n\n%s" % (ROLE_PROMPTS.get(ROLE, ROLE_PROMPTS["all"]), RULES)
+    prompt = "%s\n\n%s\n\n---\n\n%s" % (ROLE_PROMPTS.get(ROLE, ROLE_PROMPTS["all"]), RULES, task)
 
-    print("role=%s trigger=%s strategy=%s fams=%s" % (ROLE, TRIGGER, STRATEGY, fams), flush=True)
+    print("role=%s trigger=%s auth=%s strategy=%s fams=%s" % (ROLE, TRIGGER, AUTH, STRATEGY, fams), flush=True)
     tried = []
     for f in fams:
-        seq = resolve_chain(f, order)
+        seq = accounts_for(f, order)
         if not seq:
-            tried.append("- %s: 등록된 키 없음" % NAME[f])
+            tried.append("- %s: 켜진 계정 없음" % NAME[f])
             continue
-        for idx, key in seq:
-            total = len(seq)
-            ok, out = call(f, key, system, task)
+        for idx, (aid, acct) in enumerate(seq, 1):
+            model = acct.get("model") or ("claude-sonnet-4-5" if f == "claude" else "gemini-2.5-pro")
+            level = acct.get("thinking") or "medium"
+            label = acct.get("label") or aid
+            env, err = env_for(f, acct)
+            if err:
+                tried.append("- %s %s: %s" % (NAME[f], label, err))
+                continue
+            ok, out = run_cli(f, acct, env, prompt, level, model)
+            used = gemini_alias(model, level) if (f == "gemini" and ok) else ""
+            if not ok and f == "gemini" and gemini_alias(model, level):
+                ok, out, used = run_cli(f, acct, env, prompt, level, model, use_alias=False)
             if ok and str(out).strip():
-                model = CLAUDE_MODEL if f == "claude" else GEMINI_MODEL
-                head = "### %s · %s (계정 #%d)\n" % (NAME[f], role_label, idx)
-                meta = "> 전략: %s · 모델: %s · 트리거: %s\n\n" % (STRATEGY, model, TRIGGER)
-                foot = ("\n\n---\n<sub>AI 협업 자동 응답 · 계정 #%d · 시도 %d/%d · "
-                        "[실행 로그](https://github.com/%s/actions/runs/%s)</sub>\n") % (idx, idx, total, REPO, RUN_ID)
+                head = "### %s · %s (%s)\n" % (NAME[f], role_label, label)
+                meta = "> 모델: %s · 생각 깊이: %s · 인증: %s · 전략: %s\n\n" % (
+                    model, THINK.get(level, level),
+                    "내 PC 로그인" if AUTH == "login" else "OAuth/API", STRATEGY)
+                foot = ("\n\n---\n<sub>%s · 계정 %d/%d · %s\n"
+                        "[실행 로그](https://github.com/%s/actions/runs/%s)</sub>\n") % (
+                    label, idx, len(seq), ("별칭 " + used) if used else ("모델 " + model), REPO, RUN_ID)
                 comment(num, head + meta + str(out).strip() + foot)
-                step_summary("## %s · %s\n\n- 계정: #%d/%d\n- 모델: %s\n\n%s\n" % (NAME[f], role_label, idx, total, model, str(out)[:2000]))
-                print("ok:", f, idx, flush=True)
+                step_summary("## %s · %s\n\n- 계정: %d/%d\n- 모델: %s\n- 생각 깊이: %s\n\n%s\n" % (
+                    NAME[f], role_label, idx, len(seq), model, THINK.get(level, level), str(out)[:2000]))
+                print("ok:", f, aid, flush=True)
                 return 0
-            tried.append("- %s 계정 #%d: %s" % (NAME[f], idx, short(out)))
-            if str(short(out, 40)).startswith("429") or "quota" in short(out, 200).lower():
-                time.sleep(3)
+            tried.append("- %s %s: %s" % (NAME[f], label, short(out, 160)))
         print("family exhausted:", f, flush=True)
 
-    body = "### AI 호출 실패 (%s)\n\n활성 계정이 모두 응답하지 않았습니다.\n\n%s\n\n" % (role_label, "\n".join(tried) or "- 시도 없음")
-    body += "<sub>키를 새로 등록하거나(ANTHROPIC_API_KEY_n / GEMINI_API_KEY_n) 잠시 후 다시 실행해 주세요.</sub>"
+    body = "### AI 호출 실패 (%s)\n\n계정이 모두 응답하지 않았습니다.\n\n%s\n\n" % (role_label, "\n".join(tried) or "- 시도 없음")
+    if AUTH == "login":
+        body += ("<sub>러너 PC에서 계정별 1회 로그인이 끝났는지 확인해 주세요 "
+                 "(CLAUDE_CONFIG_DIR / GEMINI_CLI_HOME). Gemini는 프로필마다 settings.json 도 필요합니다.</sub>")
+    else:
+        body += "<sub>시크릿(CLAUDE_CODE_OAUTH_TOKEN_n · ANTHROPIC_API_KEY_n · GEMINI_API_KEY_n)을 확인해 주세요.</sub>"
     comment(num, body)
     step_summary("## AI 호출 실패\n\n" + "\n".join(tried))
     print("FAILED", tried, flush=True)
@@ -1546,10 +1927,9 @@ function indentBlock(text, n){
   return text.replace(/\s+$/, "").split("\n").map(l => l.length ? pad + l : "").join("\n");
 }
 function buildRoleMap(){
-  const plan = secretPlan();
   const both = () => ({
-    claude: state.accounts.claude.filter(a => a.enabled).map((a, i) => String(i + 1)),
-    gemini: state.accounts.gemini.filter(a => a.enabled).map((a, i) => String(i + 1))
+    claude: state.accounts.claude.filter(a => a.enabled).map(a => a.id),
+    gemini: state.accounts.gemini.filter(a => a.enabled).map(a => a.id)
   });
   if (state.strategy === "rotate"){
     return {roles:["all"], map:{all:{family:"both", order:both()}}};
@@ -1560,12 +1940,9 @@ function buildRoleMap(){
   roles.forEach(rid => {
     const p = primaryFor(rid);
     const fam = familyOf(p.id);
-    const ord = [String(plan[fam][p.id])];
+    const ord = [p.id];
     if (state.strategy === "hybrid"){
-      famOrder(fam).forEach(a => {
-        const n = String(plan[fam][a.id]);
-        if (n && ord.indexOf(n) === -1) ord.push(n);
-      });
+      famOrder(fam).forEach(a => { if (ord.indexOf(a.id) === -1) ord.push(a.id); });
     }
     map[rid] = {family: fam, order: ord};
   });
@@ -1579,6 +1956,21 @@ function triggerMentions(){
   return m.length ? m.join(" · ") : "(코멘트 트리거 없음)";
 }
 
+function accountSpec(){
+  const spec = {};
+  ["claude","gemini"].forEach(fam => {
+    state.accounts[fam].filter(a => a.enabled).forEach((a, i) => {
+      spec[a.id] = {
+        label: a.label, family: fam, slot: i + 1,
+        alias: a.alias || "", profile: profileOf(a),
+        model: acctModel(a), thinking: acctThink(a)
+      };
+    });
+  });
+  return spec;
+}
+function yq(s){ return "'" + String(s).replace(/'/g, "''") + "'"; }
+
 function buildYaml(){
   const out = $("#yamlOut");
   if (!out) return;
@@ -1589,22 +1981,49 @@ function buildYaml(){
   const timeout = Math.min(120, Math.max(5, Number(state.timeout) || 30));
   const labels = {all:"공동"};
   ROLES.forEach(r => { labels[r.id] = r.name; });
+  const loginMode = state.authMode !== "secret";
+  const runs = (state.runnerLabels || "self-hosted").split(",").map(x => x.trim()).filter(Boolean);
+  const runsOn = runs.length > 1 ? "[" + runs.join(", ") + "]" : (runs[0] || "self-hosted");
+  const allowed = (state.allowedUsers || state.repo.owner || "repo-owner").trim();
+  const spec = accountSpec();
   const L = [];
   const P = (...xs) => xs.forEach(x => L.push(x));
 
   P("# " + "═".repeat(62));
   P("#  AI 협업 워크플로 · GitHub Actions (AI 협업 콘솔 자동 생성)");
-  P("#  Claude " + cList.length + "개 · Gemini " + gList.length + "개 · 전략: " + STRATEGY_NAME[state.strategy]);
-  P("#  생성: " + nowStamp());
+  P("#  인증: " + AUTH_NAME[loginMode ? "login" : "secret"] + " · Claude " + cList.length + "개 · Gemini " + gList.length + "개");
+  P("#  전략: " + STRATEGY_NAME[state.strategy] + " · 생성: " + nowStamp());
   P("#");
-  P("#  설치");
-  P("#   1) 이 내용을 저장소의 .github/workflows/ai-collab.yml 로 저장");
-  P("#   2) Settings → Secrets and variables → Actions 에 시크릿 등록");
-  cList.forEach((a, i) => P("#        ANTHROPIC_API_KEY_" + (i + 1) + "   ← " + a.label));
-  gList.forEach((a, i) => P("#        GEMINI_API_KEY_" + (i + 1) + "      ← " + a.label));
-  P("#   3) 이슈·PR 코멘트에 " + triggerMentions() + " 중 하나를 적으면 실행");
+  if (loginMode){
+    P("#  설치 (최초 1회)");
+    P("#   1) 내 PC에 Claude Code · Gemini CLI 설치");
+    P("#   2) 계정별로 아래를 한 번씩 실행해 그 계정으로 로그인");
+    cList.forEach(a => P("#        CLAUDE_CONFIG_DIR=" + profileOf(a) + " claude      # " + a.label + (a.alias ? " · " + a.alias : "")));
+    gList.forEach(a => P("#        GEMINI_CLI_HOME=" + profileOf(a) + " gemini        # " + a.label + (a.alias ? " · " + a.alias : "")));
+    let step = 3;
+    if (gList.length){
+      P("#   " + step + ") Gemini는 프로필마다 settings.json(생각 깊이 별칭)을 복사");
+      gList.forEach(a => P("#        " + geminiSettingsPath(a)));
+      step += 1;
+    }
+    P("#   " + step + ") 이 PC에 Self-hosted 러너 연결 (Settings → Actions → Runners)");
+    P("#      러너는 로그인한 것과 같은 OS 사용자로 실행해야 프로필을 읽습니다");
+    P("#   " + (step + 1) + ") 이 파일을 .github/workflows/ai-collab.yml 로 저장");
+  } else {
+    P("#  설치 (최초 1회)");
+    P("#   1) Settings → Secrets and variables → Actions 에 시크릿 등록");
+    cList.forEach((a, i) => P("#        CLAUDE_CODE_OAUTH_TOKEN_" + (i + 1) + "  또는  ANTHROPIC_API_KEY_" + (i + 1) + "   ← " + a.label));
+    gList.forEach((a, i) => P("#        GEMINI_API_KEY_" + (i + 1) + "                          ← " + a.label));
+    P("#   2) 이 파일을 .github/workflows/ai-collab.yml 로 저장");
+  }
+  P("#");
+  P("#  모델·생각 깊이 (계정별)");
+  cList.concat(gList).forEach(a => {
+    const fam = familyOf(a.id);
+    P("#    " + a.label + " · " + presetName(acctModel(a)) + " (" + acctModel(a) + ") · " + THINK_NAME[acctThink(a)] + " — " + (loginMode ? thinkDetailCli(fam, acctThink(a), acctModel(a)) : thinkDetail(fam, acctThink(a), acctModel(a))));
+  });
   P("# " + "═".repeat(62));
-  P("name: AI Collab (Claude + Gemini)");
+  P("name: AI Collab (Claude + Gemini · " + (loginMode ? "내 PC 로그인" : "OAuth·API") + ")");
   P("");
   P("on:");
   const onComment = !!(t.claude || t.gemini || t.collab);
@@ -1629,17 +2048,19 @@ function buildYaml(){
   P("  cancel-in-progress: false");
   P("");
   P("env:");
+  P("  AI_AUTH: " + (loginMode ? "login" : "secret"));
   P("  AI_STRATEGY: " + state.strategy);
   P("  AI_LABEL: " + (t.labelName || "ai-collab"));
-  P("  CLAUDE_MODEL: " + (state.models.claude || "claude-sonnet-4-5"));
-  P("  GEMINI_MODEL: " + (state.models.gemini || "gemini-2.5-pro"));
-  P("  AI_ROLES: '" + JSON.stringify(rm.roles) + "'");
-  P("  AI_ROLE_MAP: '" + JSON.stringify(rm.map) + "'");
-  P("  AI_ROLE_LABELS: '" + JSON.stringify(labels) + "'");
+  P("  AI_ALLOWED_USERS: " + yq(allowed));
+  P("  AI_ACCOUNTS: " + yq(JSON.stringify(spec)));
+  P("  AI_ROLES: " + yq(JSON.stringify(rm.roles)));
+  P("  AI_ROLE_MAP: " + yq(JSON.stringify(rm.map)));
+  P("  AI_ROLE_LABELS: " + yq(JSON.stringify(labels)));
   P("");
   P("jobs:");
   P("  route:");
-  P("    runs-on: ubuntu-latest");
+  P("    name: 트리거 판별");
+  P("    runs-on: " + (loginMode ? runsOn : "ubuntu-latest"));
   P("    outputs:");
   P("      enabled: ${{ steps.route.outputs.enabled }}");
   P("      trigger: ${{ steps.route.outputs.trigger }}");
@@ -1653,9 +2074,10 @@ function buildYaml(){
   P("          PY");
   P("");
   P("  collab:");
+  P("    name: AI 응답 (${{ matrix.role }})");
   P("    needs: route");
   P("    if: needs.route.outputs.enabled == 'true'");
-  P("    runs-on: ubuntu-latest");
+  P("    runs-on: " + (loginMode ? runsOn : "ubuntu-latest"));
   P("    timeout-minutes: " + timeout);
   P("    strategy:");
   P("      fail-fast: false");
@@ -1664,23 +2086,53 @@ function buildYaml(){
   P("        role: ${{ fromJSON(needs.route.outputs.roles) }}");
   P("    steps:");
   P("      - uses: actions/checkout@v4");
-  P("      - name: AI 응답 생성 (${{ matrix.role }})");
+  if (!loginMode){
+    P("      - uses: actions/setup-node@v4");
+    P("        with:");
+    P('          node-version: "20"');
+    P("      - name: Claude / Gemini CLI 설치");
+    P("        run: |");
+    P("          npm install -g @anthropic-ai/claude-code @google/gemini-cli");
+    if (gList.length){
+      P("      - name: Gemini 설정(생각 깊이 별칭)");
+      P("        run: |");
+      P('          mkdir -p "$HOME/.gemini"');
+      P("          cat > \"$HOME/.gemini/settings.json\" <<'JSON'");
+      L.push(indentBlock(geminiSettings(), 10));
+      P("          JSON");
+    }
+  }
+  P("      - name: AI 응답 생성");
   P("        env:");
   P("          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
   P("          AI_ROLE: ${{ matrix.role }}");
   P("          AI_TRIGGER: ${{ needs.route.outputs.trigger }}");
-  cList.forEach((a, i) => P("          ANTHROPIC_API_KEY_" + (i + 1) + ": ${{ secrets.ANTHROPIC_API_KEY_" + (i + 1) + " }}"));
-  gList.forEach((a, i) => P("          GEMINI_API_KEY_" + (i + 1) + ": ${{ secrets.GEMINI_API_KEY_" + (i + 1) + " }}"));
+  P('          AI_CLI_TIMEOUT: "' + Math.max(300, timeout * 60 - 60) + '"');
+  if (!loginMode){
+    cList.forEach((a, i) => {
+      P("          CLAUDE_CODE_OAUTH_TOKEN_" + (i + 1) + ": ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN_" + (i + 1) + " }}");
+      P("          ANTHROPIC_API_KEY_" + (i + 1) + ": ${{ secrets.ANTHROPIC_API_KEY_" + (i + 1) + " }}");
+    });
+    gList.forEach((a, i) => P("          GEMINI_API_KEY_" + (i + 1) + ": ${{ secrets.GEMINI_API_KEY_" + (i + 1) + " }}"));
+  }
   P("        run: |");
   P("          python3 - <<'PY'");
-  L.push(indentBlock(PY_DRIVER, 10));
+  L.push(indentBlock(PY_CLI, 10));
   P("          PY");
   P("");
   P("# " + "─".repeat(62));
   P("# 참고");
-  P("#  · 계정을 늘리려면 Secret(ANTHROPIC_API_KEY_4 …)을 추가하고 위 env 에 한 줄만 더하세요.");
-  P("#  · 429·한도 오류가 나면 같은 진영의 다음 번호 키로 자동 폴백합니다.");
-  P("#  · 저장소는 읽기 전용으로 다루고, 결과는 이슈 코멘트로만 남깁니다.");
+  if (loginMode){
+    P("#  · 계정을 늘리면 콘솔에서 켜고 이 파일을 다시 받으세요 (프로필 ~/.claude-n, ~/.gemini-n).");
+    P("#  · 429·한도 오류가 나면 역할 순서의 다음 계정 프로필로 자동 폴백합니다.");
+    P("#  · AI_ALLOWED_USERS 의 사용자만 트리거합니다. 러너는 필요할 때만 켜 두세요(내 PC 권한).");
+    P("#  · Claude 생각 깊이 = CLAUDE_CODE_EFFORT_LEVEL, 끄기 = MAX_THINKING_TOKENS=0");
+    P("#  · Gemini 생각 깊이 = settings.json 별칭 collab-<모델>-<단계> 의 thinkingBudget / thinkingLevel");
+  } else {
+    P("#  · 429·한도 오류가 나면 같은 진영의 다음 시크릿으로 자동 폴백합니다.");
+    P("#  · Claude는 CLAUDE_CODE_OAUTH_TOKEN_n 이 있으면 먼저, 없으면 ANTHROPIC_API_KEY_n 을 씁니다.");
+    P("#  · Gemini는 GEMINI_API_KEY_n 만 씁니다(로그인 계정은 '내 PC 로그인' 모드).");
+  }
 
   out.textContent = L.join("\n");
   out.className = "yaml";
@@ -1707,29 +2159,51 @@ function renderGenSummary(){
 function buildGuide(){
   const cList = state.accounts.claude.filter(a => a.enabled);
   const gList = state.accounts.gemini.filter(a => a.enabled);
-  const rows = [];
-  cList.forEach((a, i) => rows.push("<code>ANTHROPIC_API_KEY_" + (i + 1) + "</code> ← " + esc(a.label)));
-  gList.forEach((a, i) => rows.push("<code>GEMINI_API_KEY_" + (i + 1) + "</code> ← " + esc(a.label)));
-  const secrets = rows.length ? rows.join("<br>") : "<i>켜진 계정이 없습니다</i>";
-  const repo = esc(repoName());
-  const html = [
-    "<li>저장소 <b>" + repo + "</b>에 <code>.github/workflows/ai-collab.yml</code> 파일을 만듭니다. (오른쪽 <b>.yml 다운로드</b> 후 업로드하거나, 내용을 복사해 새 파일로 저장)</li>",
-    "<li><b>Settings → Secrets and variables → Actions → New repository secret</b> 에서 아래 시크릿을 하나씩 등록합니다.<br>" + secrets + "</li>",
-    "<li>CLI로 한 번에 넣으려면: <code>gh secret set ANTHROPIC_API_KEY_1 -R " + esc(repoName()) + "</code> (키 값을 붙여넣고 Enter, 나머지도 같은 방식)</li>",
-    "<li>이슈나 PR 코멘트에 <code>@claude</code> · <code>@gemini</code> · <code>@collab</code> 중 하나를 적으면 워크플로가 실행되고, 결과가 같은 이슈에 코멘트로 달립니다." + (state.triggers.label ? " 라벨 <code>" + esc(state.triggers.labelName || "ai-collab") + "</code> 을 붙여도 실행됩니다." : "") + "</li>",
-    "<li>동작 확인은 저장소 <b>Actions</b> 탭 → <b>AI Collab (Claude + Gemini)</b> → <b>Run workflow</b>. 처음 한 번은 Actions 권한(<b>Settings → Actions → General → Workflow permissions</b>)도 확인하세요.</li>",
-    "<li>한도가 소진되면 같은 진영의 다음 번호 키로 자동 폴백합니다. 계정을 더 쓰려면 <code>ANTHROPIC_API_KEY_4</code>, <code>GEMINI_API_KEY_5</code> 처럼 Secret을 추가하고 워크플로 <code>env</code>에 한 줄만 더하면 됩니다.</li>"
-  ].join("");
-  $("#guideList").innerHTML = html;
-  return [
-    "AI 협업 워크플로 설치 가이드 (" + repoName() + ")",
-    "1) .github/workflows/ai-collab.yml 파일 추가 (다운로드한 ai-collab.yml 업로드)",
-    "2) Settings → Secrets and variables → Actions 에 등록:",
-    ...rows.map(r => "   - " + r.replace(/<[^>]+>/g, "")),
-    "3) 이슈/PR 코멘트에 " + triggerMentions() + " 중 하나를 적으면 실행",
-    "4) Actions 탭 → AI Collab (Claude + Gemini) → Run workflow 로 수동 실행 가능",
-    "5) 키는 HTML·저장소 코드에 넣지 말고 Secrets 에만 둡니다."
-  ].join("\n");
+  const loginMode = state.authMode !== "secret";
+  const repo = repoName();
+  const html = [];
+  const text = [];
+  if (loginMode){
+    const logins = cList.map(a => "CLAUDE_CONFIG_DIR=" + profileOf(a) + " claude")
+      .concat(gList.map(a => "GEMINI_CLI_HOME=" + profileOf(a) + " gemini"));
+    html.push("<li>내 PC에 <b>Claude Code · Gemini CLI</b>를 설치하고, 아래 명령을 계정마다 <b>한 번씩</b> 실행해 그 계정으로 로그인합니다.<br>" +
+      (logins.length ? logins.map(l => "<code>" + esc(l) + "</code>").join("<br>") : "<i>켜진 계정이 없습니다</i>") + "</li>");
+    html.push("<li>Gemini 계정은 프로필마다 <code>settings.json</code>이 필요합니다. 왼쪽 <b>⚙ Gemini 설정</b>을 복사해 이 경로에 붙여넣으세요.<br>" +
+      (gList.length ? gList.map(a => "<code>" + esc(geminiSettingsPath(a)) + "</code>").join("<br>") : "<i>Gemini 계정 없음</i>") + "</li>");
+    html.push("<li>같은 PC에 <b>Self-hosted 러너</b>를 연결합니다. 저장소 <b>Settings → Actions → Runners → New self-hosted runner</b>가 안내하는 명령을 <b>로그인한 것과 같은 사용자</b>로 실행하세요. (Windows는 관리자 PowerShell에서 <code>./run.cmd</code>, WSL도 가능)</li>");
+    html.push("<li>오른쪽 <b>.yml 다운로드</b>로 받은 파일을 <code>.github/workflows/ai-collab.yml</code>로 저장소에 올립니다.</li>");
+    html.push("<li>이슈·PR 코멘트에 " + triggerMentions() + " 중 하나를 적으면, 내 PC의 러너가 그 계정 프로필로 CLI를 실행하고 결과를 코멘트로 달아요." + (state.triggers.label ? " 라벨 <code>" + esc(state.triggers.labelName || "ai-collab") + "</code>도 같은 역할입니다." : "") + "</li>");
+    html.push("<li>한도(429)에 닿으면 역할 순서의 다음 계정 프로필로 자동 폴백합니다. 러너는 평소 꺼두고 필요할 때만 켜세요.</li>");
+    html.push("<li><b>Gemini 로그인 주의</b> — Google 계정 정책에 따라 개인 계정은 Gemini CLI 로그인이 막힐 수 있습니다. <code>/auth</code>에서 안 되면 오른쪽 위 인증 방식을 <b>OAuth·API Secrets</b>로 바꾸고 Gemini는 유료 API 키를 쓰세요.</li>");
+
+    text.push("AI 협업 워크플로 설치 가이드 — 내 PC 로그인 (" + repo + ")");
+    text.push("1) 내 PC에 Claude Code / Gemini CLI 설치 후 계정마다 1회 로그인:");
+    logins.forEach(l => text.push("   " + l));
+    text.push("2) Gemini 프로필 settings.json (생각 깊이 별칭):");
+    gList.forEach(a => text.push("   " + geminiSettingsPath(a)));
+    text.push("3) 같은 PC에 Self-hosted 러너 연결 (로그인한 것과 같은 OS 사용자)");
+    text.push("4) .github/workflows/ai-collab.yml 저장");
+    text.push("5) 이슈/PR 코멘트에 " + triggerMentions() + " 중 하나 → 내 PC 러너가 CLI 실행, 결과를 코멘트로");
+    text.push("6) Gemini 개인 계정 로그인이 막히면 인증 방식을 OAuth·API Secrets 로 (Gemini는 유료 키 필요)");
+  } else {
+    const rows = [];
+    cList.forEach((a, i) => rows.push("<code>CLAUDE_CODE_OAUTH_TOKEN_" + (i + 1) + "</code> 또는 <code>ANTHROPIC_API_KEY_" + (i + 1) + "</code> ← " + esc(a.label)));
+    gList.forEach((a, i) => rows.push("<code>GEMINI_API_KEY_" + (i + 1) + "</code> ← " + esc(a.label)));
+    html.push("<li><b>Settings → Secrets and variables → Actions → New repository secret</b> 에 아래 시크릿을 등록합니다.<br>" +
+      (rows.length ? rows.join("<br>") : "<i>켜진 계정이 없습니다</i>") + "</li>");
+    html.push("<li>Claude는 <code>claude setup-token</code>으로 받은 구독 OAuth 토큰을 <code>CLAUDE_CODE_OAUTH_TOKEN_n</code>에 넣으면 구독으로 돌고, 없으면 API 키를 씁니다. Gemini는 이 모드에서 <code>GEMINI_API_KEY_n</code>(유료 키)만 됩니다.</li>");
+    html.push("<li>오른쪽 <b>.yml 다운로드</b>로 받은 파일을 <code>.github/workflows/ai-collab.yml</code>로 저장소에 올립니다. 워크플로가 GitHub 러너에 CLI를 설치하고 Gemini <code>settings.json</code>은 자동으로 만듭니다.</li>");
+    html.push("<li>이슈·PR 코멘트에 " + triggerMentions() + " 중 하나를 적으면 실행되고, 결과가 같은 이슈에 코멘트로 달립니다.</li>");
+    html.push("<li>한도가 소진되면 같은 진영의 다음 번호 시크릿으로 자동 폴백합니다. 계정을 늘리면 콘솔에서 켜고 이 파일을 다시 받으세요.</li>");
+
+    text.push("AI 협업 워크플로 설치 가이드 — OAuth·API Secrets (" + repo + ")");
+    rows.forEach(r => text.push("   " + r.replace(/<[^>]+>/g, "")));
+    text.push("1) Settings → Secrets and variables → Actions 에 등록");
+    text.push("2) .github/workflows/ai-collab.yml 저장");
+    text.push("3) 이슈/PR 코멘트에 " + triggerMentions() + " 중 하나 → 실행");
+  }
+  $("#guideList").innerHTML = html.join("");
+  return text.join("\n");
 }
 
 /* ── UI 바인딩 ────────────────────────────────────────── */
@@ -1743,15 +2217,56 @@ function applyMode(){
   $("#pane-actions").classList.toggle("on", state.mode === "actions");
   if (state.mode === "actions"){ buildYaml(); renderGenSummary(); }
 }
+function fillModelSelect(sel, fam, value){
+  const el = $(sel);
+  if (!el) return;
+  el.innerHTML = MODEL_PRESETS[fam].map(p => '<option value="' + p.id + '">' + esc(p.name) + "</option>").join("")
+    + '<option value="__custom__">직접 입력 (Custom ID)</option>';
+  const known = MODEL_PRESETS[fam].some(p => p.id === value);
+  el.value = known ? value : "__custom__";
+  const inp = $(fam === "claude" ? "#modelClaudeCustom" : "#modelGeminiCustom");
+  if (inp){ inp.style.display = known ? "none" : ""; inp.value = known ? "" : (value || ""); }
+}
+function renderThinkTable(){
+  const box = $("#thinkTable");
+  if (!box) return;
+  const gm = state.models.gemini;
+  const g3 = geminiIs3(gm);
+  const rows = THINK_LEVELS.map(t => {
+    const on = (state.thinking.claude === t.id || state.thinking.gemini === t.id) ? ' class="on"' : "";
+    const cv = t.claude ? t.claude.toLocaleString() : "0 · 끔";
+    const gv = g3 ? ("thinkingLevel " + geminiLevel(gm, t.id)) : ("thinkingBudget " + geminiBudget(gm, t.id).toLocaleString());
+    const ev = t.effort ? ("effort " + t.effort) : "MAX_THINKING_TOKENS=0";
+    return "<tr" + on + "><td>" + t.name + "</td><td>" + ev + "</td><td class=\"cl\">" + cv + "</td><td class=\"gm\">" + gv + "</td></tr>";
+  }).join("");
+  box.innerHTML = '<table class="think-tbl"><thead><tr><th>단계</th><th>Claude Code CLI</th><th>Claude API</th><th>Gemini</th></tr></thead><tbody>' + rows + "</tbody></table>" +
+    '<p class="think-note">Claude Code는 <code>CLAUDE_CODE_EFFORT_LEVEL</code>, API는 <code>thinking.budget_tokens</code>로 들어갑니다. Gemini 2.5는 <code>thinkingBudget</code>(Pro 최소 128), Gemini 3는 <code>thinkingLevel</code>. CLI 쪽 생각 깊이는 프로필 <code>settings.json</code> 별칭으로 적용됩니다.</p>';
+}
+function renderAuthHint(){
+  const loginMode = state.authMode !== "secret";
+  const h = $("#authHint");
+  if (h) h.textContent = loginMode
+    ? "내 PC에서 1회 로그인한 구독 계정으로 CLI를 돌립니다. API 키 발급 없이 쓰고, 구독 한도를 씁니다."
+    : "GitHub 러너에 CLI를 설치해 OAuth 토큰(Claude) 또는 API 키로 돌립니다. PC를 켜두지 않아도 되지만 Gemini는 유료 키가 필요합니다.";
+  const rr = $("#runnerRow"); if (rr) rr.style.display = loginMode ? "" : "none";
+  const rw = $("#runnerWarn"); if (rw) rw.style.display = loginMode ? "" : "none";
+  $$("#authSeg button").forEach(b => b.classList.toggle("on", b.getAttribute("data-auth") === state.authMode));
+}
 function applyStateToInputs(){
   $("#repoOwner").value = state.repo.owner || "";
   $("#repoName").value = state.repo.name || "";
   $("#repoPat").value = state.repo.pat || "";
-  $("#modelClaude").value = state.models.claude || "";
-  $("#modelGemini").value = state.models.gemini || "";
+  fillModelSelect("#modelClaude", "claude", state.models.claude);
+  fillModelSelect("#modelGemini", "gemini", state.models.gemini);
+  $("#thinkClaude").innerHTML = thinkOptions(null, "claude");
+  $("#thinkGemini").innerHTML = thinkOptions(null, "gemini");
+  $("#thinkClaude").value = state.thinking.claude;
+  $("#thinkGemini").value = state.thinking.gemini;
+  $("#runnerLabels").value = state.runnerLabels || "self-hosted";
   $("#labelName").value = state.triggers.labelName || "ai-collab";
   $("#timeoutMin").value = state.timeout || 30;
   $$("#pane-actions [data-trigger]").forEach(cb => { cb.checked = !!state.triggers[cb.getAttribute("data-trigger")]; });
+  renderAuthHint(); renderThinkTable();
   applyTheme(); applyMode();
 }
 
@@ -1831,8 +2346,58 @@ function bindUI(){
     buildYaml(); save();
   }));
   $("#labelName").addEventListener("input", e => { state.triggers.labelName = e.target.value.trim() || "ai-collab"; buildYaml(); save(); });
-  $("#modelClaude").addEventListener("input", e => { state.models.claude = e.target.value.trim(); buildYaml(); save(); });
-  $("#modelGemini").addEventListener("input", e => { state.models.gemini = e.target.value.trim(); buildYaml(); save(); });
+  $("#modelClaude").addEventListener("change", e => {
+    const v = e.target.value;
+    if (v === "__custom__"){ $("#modelClaudeCustom").style.display = ""; $("#modelClaudeCustom").focus(); }
+    else { state.models.claude = v; $("#modelClaudeCustom").style.display = "none"; renderAccounts(); renderThinkTable(); buildYaml(); buildGuide(); save(); }
+  });
+  $("#modelGemini").addEventListener("change", e => {
+    const v = e.target.value;
+    if (v === "__custom__"){ $("#modelGeminiCustom").style.display = ""; $("#modelGeminiCustom").focus(); }
+    else { state.models.gemini = v; $("#modelGeminiCustom").style.display = "none"; renderAccounts(); renderThinkTable(); buildYaml(); buildGuide(); save(); }
+  });
+  $("#modelClaudeCustom").addEventListener("input", e => {
+    const v = e.target.value.trim();
+    state.models.claude = v || MODEL_PRESETS.claude[0].id;
+    renderAccounts(); renderThinkTable(); buildYaml(); buildGuide(); save();
+  });
+  $("#modelGeminiCustom").addEventListener("input", e => {
+    const v = e.target.value.trim();
+    state.models.gemini = v || MODEL_PRESETS.gemini[0].id;
+    renderAccounts(); renderThinkTable(); buildYaml(); buildGuide(); save();
+  });
+  $("#thinkClaude").addEventListener("change", e => {
+    state.thinking.claude = e.target.value;
+    renderAccounts(); renderThinkTable(); buildYaml(); buildGuide(); save();
+  });
+  $("#thinkGemini").addEventListener("change", e => {
+    state.thinking.gemini = e.target.value;
+    renderAccounts(); renderThinkTable(); buildYaml(); buildGuide(); save();
+  });
+  $$("#authSeg button").forEach(b => b.addEventListener("click", () => {
+    state.authMode = b.getAttribute("data-auth");
+    logMsg("인증 방식 → " + AUTH_NAME[state.authMode]);
+    renderAuthHint(); renderAccounts(); buildYaml(); buildGuide(); save();
+  }));
+  $("#runnerLabels").addEventListener("input", e => { state.runnerLabels = e.target.value.trim() || "self-hosted"; buildYaml(); save(); });
+  $("#loginAllBtn").addEventListener("click", () => {
+    const list = state.accounts.claude.concat(state.accounts.gemini).filter(a => a.enabled);
+    if (!list.length){ toast("켜진 계정이 없어요", "err"); return; }
+    copyText(list.map(loginCmd).join("\n\n"), "계정 " + list.length + "곳의 로그인 명령을 복사했어요 (한 번씩만)");
+  });
+  $("#gsSettingsBtn").addEventListener("click", () => {
+    copyText(geminiSettings(), "Gemini settings.json 복사 — 각 프로필의 .gemini/settings.json 에 붙여넣으세요");
+    logMsg("Gemini settings.json 복사");
+  });
+  $("#mOwner").addEventListener("change", () => {
+    const cur = $("#mModel").value;
+    fillCardModel($("#mOwner").value, cur === "__custom__" ? "" : cur);
+  });
+  $("#mModel").addEventListener("change", e => {
+    const inp = $("#mModelCustom");
+    if (e.target.value === "__custom__"){ inp.style.display = ""; inp.focus(); }
+    else inp.style.display = "none";
+  });
   $("#timeoutMin").addEventListener("input", e => { state.timeout = Number(e.target.value) || 30; buildYaml(); save(); });
   $("#copyYamlBtn").addEventListener("click", () => copyText($("#yamlOut").textContent, "워크플로 YAML을 복사했어요"));
   $("#dlYamlBtn").addEventListener("click", () => {
@@ -1899,7 +2464,7 @@ function bindUI(){
 /* ── 렌더·틱·시작 ─────────────────────────────────────── */
 function renderAll(){
   renderAccounts(); renderOrder(); renderMatrix(); renderStrategyHint();
-  renderBoard(); renderLog(); renderGenSummary(); buildYaml(); buildGuide();
+  renderBoard(); renderLog(); renderGenSummary(); renderThinkTable(); renderAuthHint(); buildYaml(); buildGuide();
 }
 function tick(){
   const anyCool = ["claude","gemini"].some(f => state.accounts[f].some(a => a.status === "cool" && a.cooldownUntil));
