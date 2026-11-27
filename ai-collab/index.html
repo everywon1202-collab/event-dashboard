@@ -153,6 +153,13 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:2px solid var(
 @media (max-width:1180px){ .sidebar{position:static} }
 
 /* ── account cards ───────────────────────────────────── */
+.acct-wrap{min-width:0}
+@media (min-width:1181px){
+  .acct-wrap{max-height:392px;overflow-y:auto;padding-right:5px;margin-right:-5px;scrollbar-width:thin}
+  .acct-wrap::-webkit-scrollbar{width:6px}
+  .acct-wrap::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
+  .acct-wrap::-webkit-scrollbar-track{background:transparent}
+}
 .acct-group{margin-top:2px}
 .grp-title{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:10px 2px 7px}
 .grp-title .bar{width:3px;height:12px;border-radius:2px}
@@ -253,7 +260,7 @@ table.matrix tr.muted td{opacity:.4}
 .gh-lists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
 @media (max-width:900px){ .gh-lists{grid-template-columns:1fr} }
 .gh-box{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px;min-width:0}
-.gh-box h4{font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.gh-box h4{font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
 .gh-item{display:flex;align-items:center;gap:6px;padding:5px 2px;border-top:1px solid var(--line);font-size:11.5px;min-width:0}
 .gh-item:first-of-type{border-top:0}
 .gh-item a.t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
@@ -367,8 +374,10 @@ pre.yaml .h{color:#e2e8f5;font-weight:700}
       </div>
       <p class="hint" id="strategyHint" style="margin-top:8px"></p>
 
-      <div class="acct-group claude" id="claudeGroup"></div>
-      <div class="acct-group gemini" id="geminiGroup"></div>
+      <div class="acct-wrap">
+        <div class="acct-group claude" id="claudeGroup"></div>
+        <div class="acct-group gemini" id="geminiGroup"></div>
+      </div>
     </div>
 
     <div class="card" id="orderCard" style="padding:13px">
