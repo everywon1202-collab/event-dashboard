@@ -795,32 +795,37 @@ function acctCard(a){
   const plan = secretPlan();
   const badge = a.enabled ? (fam === "claude" ? "ANTHROPIC_API_KEY_" : "GEMINI_API_KEY_") + plan[fam][a.id] : "꺼짐";
   const dot = a.enabled ? (a.status === "active" ? "active" : a.status === "cool" ? "cool" : "idle") : "idle";
-  const high = a.usage >= 85 ? " high" : "";
+  const famColor = a.usage >= 85 ? "var(--danger)" : (fam === "claude" ? "var(--claude)" : "var(--gemini)");
+  const track = "background:linear-gradient(90deg," + famColor + " " + a.usage + "%,var(--line) " + a.usage + "%)";
+  const head = '<div class="acct-top">' +
+      '<label class="switch"><input type="checkbox" data-act="toggle"' + (a.enabled ? " checked" : "") + ' /><span></span></label>' +
+      '<span class="status-dot ' + dot + '"></span>' +
+      '<span class="acct-name">' + esc(a.label) + '</span>' +
+      '<span class="secret" title="GitHub Secret 이름">' + badge + "</span>" +
+    "</div>";
+  if (!a.enabled){
+    return '<div class="acct ' + fam + ' off" data-id="' + a.id + '">' + head + "</div>";
+  }
   const roleOpts = ['<option value="">— 역할 없음 —</option>'].concat(
     ROLES.map(r => '<option value="' + r.id + '"' + (state.roles[r.id] === a.id ? " selected" : "") + ">" + esc(r.name) + "</option>")
   ).join("");
   const left = coolLeft(a);
-  return '<div class="acct ' + fam + (a.enabled ? "" : " off") + '" data-id="' + a.id + '">' +
-    '<div class="acct-top">' +
-      '<label class="switch"><input type="checkbox" data-act="toggle"' + (a.enabled ? " checked" : "") + ' /><span></span></label>' +
-      '<span class="status-dot ' + dot + '"></span>' +
-      '<span class="acct-name">' + esc(a.label) + '</span>' +
-      '<span class="secret" title="GitHub Secret 이름">' + badge + '</span>' +
-    '</div>' +
+  return '<div class="acct ' + fam + '" data-id="' + a.id + '">' +
+    head +
     '<div class="acct-mid">' +
-      '<input type="range" min="0" max="100" step="5" value="' + a.usage + '" data-act="usage" ' + (a.enabled ? "" : "disabled") + ' />' +
+      '<input type="range" min="0" max="100" step="5" value="' + a.usage + '" data-act="usage" style="' + track + '" />' +
       '<span class="pct" data-pct>' + a.usage + '%</span>' +
     '</div>' +
     '<div class="acct-bot">' +
-      '<select data-act="status"' + (a.enabled ? "" : " disabled") + '>' +
+      '<select data-act="status">' +
         Object.keys(STATUS_LABEL).map(k => '<option value="' + k + '"' + (a.status === k ? " selected" : "") + ">" + STATUS_LABEL[k] + "</option>").join("") +
       '</select>' +
       '<input class="mini-num" type="number" min="1" max="1440" value="60" data-act="coolmin" title="쿨다운(분)" />' +
-      '<button class="btn sm ghost" data-act="cool"' + (a.enabled ? "" : " disabled") + '>쿨다운</button>' +
+      '<button class="btn sm ghost" data-act="cool">쿨다운</button>' +
       (left > 0 ? '<span class="cool-tag" data-cool="' + a.id + '">⏳ ' + mmss(left) + "</span>" : "") +
     '</div>' +
     (state.strategy !== "rotate" ?
-      '<div class="acct-bot"><select data-act="role"' + (a.enabled ? "" : " disabled") + '>' + roleOpts + "</select></div>" : "") +
+      '<div class="acct-bot"><select data-act="role">' + roleOpts + "</select></div>" : "") +
   "</div>";
 }
 function renderAccounts(){
@@ -906,6 +911,8 @@ function bindAccountGroup(sel){
     const act = e.target.getAttribute("data-act");
     if (act === "usage"){
       a.usage = Number(e.target.value);
+      const famColor = a.usage >= 85 ? "var(--danger)" : (familyOf(a.id) === "claude" ? "var(--claude)" : "var(--gemini)");
+      e.target.style.background = "linear-gradient(90deg," + famColor + " " + a.usage + "%,var(--line) " + a.usage + "%)";
       const pct = card.querySelector("[data-pct]");
       if (pct) pct.textContent = a.usage + "%";
       if (a.usage >= 100 && a.status === "active"){
@@ -1502,10 +1509,10 @@ def main():
             ok, out = call(f, key, system, task)
             if ok and str(out).strip():
                 model = CLAUDE_MODEL if f == "claude" else GEMINI_MODEL
-                head = "### %s · %s (계정 #%d/%d)\n" % (NAME[f], role_label, idx, total)
+                head = "### %s · %s (계정 #%d)\n" % (NAME[f], role_label, idx)
                 meta = "> 전략: %s · 모델: %s · 트리거: %s\n\n" % (STRATEGY, model, TRIGGER)
-                foot = ("\n\n---\n<sub>AI 협업 자동 응답 · 계정 %d/%d · "
-                        "[실행 로그](https://github.com/%s/actions/runs/%s)</sub>\n") % (idx, total, REPO, RUN_ID)
+                foot = ("\n\n---\n<sub>AI 협업 자동 응답 · 계정 #%d · 시도 %d/%d · "
+                        "[실행 로그](https://github.com/%s/actions/runs/%s)</sub>\n") % (idx, idx, total, REPO, RUN_ID)
                 comment(num, head + meta + str(out).strip() + foot)
                 step_summary("## %s · %s\n\n- 계정: #%d/%d\n- 모델: %s\n\n%s\n" % (NAME[f], role_label, idx, total, model, str(out)[:2000]))
                 print("ok:", f, idx, flush=True)
@@ -1668,7 +1675,8 @@ function buildYaml(){
 
   out.textContent = L.join("\n");
   out.className = "yaml";
-  $("#yamlLines").textContent = L.length + "줄 · " + (L.join("\n").length / 1024).toFixed(1) + "KB";
+  const text = L.join("\n");
+  $("#yamlLines").textContent = text.split("\n").length + "줄 · " + (text.length / 1024).toFixed(1) + "KB";
   const badge = $("#yamlBadge");
   const ok = cList.length + gList.length > 0;
   badge.textContent = ok ? "생성 완료" : "계정을 켜 주세요";
